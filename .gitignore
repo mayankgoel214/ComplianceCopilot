@@ -11,3 +11,4 @@ __pycache__/
 *.py[cod]
 chroma_db/
 .chromadb/
+env.download

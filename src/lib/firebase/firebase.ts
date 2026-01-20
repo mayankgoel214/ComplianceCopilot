@@ -4,12 +4,12 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from "fir
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBtFFOizlXrp18p_e4TGMLudRy9O5Xs0rE",
-  authDomain: "vthacks13-74208.firebaseapp.com",
-  projectId: "vthacks13-74208",
-  storageBucket: "vthacks13-74208.firebasestorage.app",
-  messagingSenderId: "957212751673",
-  appId: "1:957212751673:web:4b42e810ddb7c511b31ae8"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 // Initialize Firebase

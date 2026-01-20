@@ -1,0 +1,13 @@
+﻿node_modules/
+.env
+.env.local
+.env*.local
+.next/
+*.log
+._*
+.DS_Store
+.vercel
+__pycache__/
+*.py[cod]
+chroma_db/
+.chromadb/

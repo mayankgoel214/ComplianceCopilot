@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx md-to-pdf:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

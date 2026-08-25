@@ -78,7 +78,9 @@ export function ComplianceDonutChart({
           <ResponsiveContainer width="100%" height={size + 50}>
             <PieChart>
               <Pie
-                data={data}
+                // Recharts types its data prop against its own row shape;
+                // ComplianceData carries the same keys plus extras it ignores.
+                data={data as unknown as Record<string, unknown>[]}
                 cx="50%"
                 cy="50%"
                 innerRadius={size * 0.25}

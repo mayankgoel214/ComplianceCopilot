@@ -282,7 +282,7 @@ export function ReportDashboard({
               <FrameworkBreakdown
                 frameworkScores={reportData.frameworkScores}
                 onFrameworkClick={handleFrameworkClick}
-                selectedFramework={selectedFramework}
+                selectedFramework={selectedFramework ?? undefined}
               />
             </TabsContent>
 
@@ -290,7 +290,7 @@ export function ReportDashboard({
               <GapAnalysisSection
                 gaps={reportData.gaps}
                 onGapClick={handleGapClick}
-                selectedGap={selectedGap}
+                selectedGap={selectedGap ?? undefined}
               />
             </TabsContent>
 

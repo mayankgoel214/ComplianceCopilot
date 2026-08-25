@@ -845,8 +845,8 @@ ALWAYS cite your sources from the vector search results.`;
 
       // Look for numbered questions or bullet points in the response
       const questionPatterns = [
-        /(\d+)\.\s*(.+?)(?=\d+\.|$)/gs, // Numbered list
-        /[-*]\s*(.+?)(?=[-*]|$)/gs, // Bullet points
+        /(\d+)\.\s*([\s\S]+?)(?=\d+\.|$)/g, // Numbered list ([\s\S] rather than the s flag)
+        /[-*]\s*([\s\S]+?)(?=[-*]|$)/g, // Bullet points
         /(?:^|\n)(.+\?)(?=\n|$)/gm, // Lines ending with question marks
       ];
 

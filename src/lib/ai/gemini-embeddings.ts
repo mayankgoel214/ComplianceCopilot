@@ -1,4 +1,3 @@
-import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { TaskType } from '@google/generative-ai';
 import { getGeminiApiKey, AI_CONFIG } from './config';
 
@@ -23,7 +22,6 @@ export interface EmbeddingResult {
 }
 
 export class GeminiEmbeddingService {
-  private embeddings: GoogleGenerativeAIEmbeddings;
   private requestCount = 0;
   private lastResetTime = Date.now();
   private requestQueue: Array<() => Promise<void>> = [];
@@ -46,13 +44,10 @@ export class GeminiEmbeddingService {
     try {
       const apiKey = getGeminiApiKey();
 
-      this.embeddings = new GoogleGenerativeAIEmbeddings({
-        apiKey,
-        model: this.config.model,
-        maxRetries: this.config.maxRetries,
-        // Configure output dimensions to match our system
-        outputDimensionality: this.config.dimensions
-      });
+      // Nothing to construct any more. Embedding requests go straight to the
+      // REST API, because this wrapper accepts outputDimensionality and does
+      // not send it — its own types now say so outright, which is what made
+      // every embedding come back at 3072 dimensions instead of 768.
 
       console.log(`Gemini embedding service initialized with ${this.config.model} (${this.config.dimensions}D)`);
     } catch (error) {
@@ -89,11 +84,12 @@ export class GeminiEmbeddingService {
 
         this.requestCount++;
       } catch (error) {
+        // Rethrown rather than substituted. A synthetic vector in place of a
+        // failed one is invisible: nothing errors, the index quietly fills with
+        // noise, and every later search returns confident nonsense. A caller
+        // that cannot embed needs to know it.
         console.error('Batch embedding generation failed:', error);
-
-        // Use fallback embeddings for failed batch
-        const fallbackEmbeddings = batch.map(() => this.createFallbackEmbedding());
-        allEmbeddings.push(...fallbackEmbeddings);
+        throw error;
       }
     }
 
@@ -121,7 +117,11 @@ export class GeminiEmbeddingService {
     const result = await this.generateEmbeddings([query], {
       taskType: 'query'
     });
-    return result.embeddings[0] || this.createFallbackEmbedding();
+    const embedding = result.embeddings[0];
+    if (!embedding) {
+      throw new Error('Embedding request returned no vector for the query');
+    }
+    return embedding;
   }
 
   /**
@@ -254,20 +254,11 @@ export class GeminiEmbeddingService {
     }
   }
 
-  /**
-   * Create fallback embedding for when API fails
-   */
-  private createFallbackEmbedding(): number[] {
-    // Create a consistent fallback embedding filled with small random values
-    const embedding = new Array(this.config.dimensions).fill(0);
-    for (let i = 0; i < embedding.length; i++) {
-      embedding[i] = (Math.random() - 0.5) * 0.01; // Small random values
-    }
-
-    // Normalize the embedding
-    const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    return embedding.map(val => magnitude > 0 ? val / magnitude : 0);
-  }
+  // createFallbackEmbedding used to live here. It returned a normalised vector
+  // of small random numbers whenever a request failed — pure noise, shaped
+  // exactly like a real embedding. Stored in the index it made retrieval return
+  // confident nonsense while every log line said success. Deleted rather than
+  // left unused, so it cannot be reached for again.
 
   /**
    * Validate that embeddings have correct dimensions

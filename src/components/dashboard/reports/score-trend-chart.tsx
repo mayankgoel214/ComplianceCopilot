@@ -208,7 +208,9 @@ export function ScoreTrendChart({
                   y={targetScore}
                   stroke="#10B981"
                   strokeDasharray="5 5"
-                  label={{ value: `Target: ${targetScore}%`, position: 'topRight' }}
+                  // 'topRight' is not one of Recharts' label positions, so it
+                  // was ignored and the label fell back to the default spot.
+                  label={{ value: `Target: ${targetScore}%`, position: 'insideTopRight' }}
                 />
               )}
 

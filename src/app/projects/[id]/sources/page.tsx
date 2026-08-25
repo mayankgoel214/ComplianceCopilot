@@ -248,7 +248,11 @@ export default function ProjectSourcesPage({
             selectedFiles={documents.map((doc) => doc.drive_file_id)}
             selectedFolders={Array.from(
               new Set(
-                documents.map((doc) => doc.parent_folder_id).filter(Boolean)
+                // A type predicate rather than filter(Boolean), which removes
+                // the nulls at runtime but does not narrow the type.
+                documents
+                  .map((doc) => doc.parent_folder_id)
+                  .filter((id): id is string => Boolean(id))
               )
             )}
             disabled={false}

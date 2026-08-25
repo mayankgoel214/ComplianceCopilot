@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { BaseAgent } from '../base/base-agent';
 import { AgentMetadata, AgentInput } from '../base/types';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';

@@ -32,9 +32,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Resolved before the try so the catch block can name it; the error logger
+  // referenced projectId and would otherwise throw a ReferenceError while
+  // reporting the original failure.
+  const { id: projectId } = await params;
+
   try {
     await ensureSystemInitialized();
-    const { id: projectId } = await params;
 
     // Verify authentication
     const user = await verifyTokenAndGetUser(

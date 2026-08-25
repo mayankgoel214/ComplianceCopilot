@@ -130,9 +130,14 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Resolved before the try so the catch block can still name it. It was
+  // previously destructured inside, and the error handler referenced projectId
+  // anyway — throwing a ReferenceError from inside the recovery path, which
+  // both masked the original error and skipped the status reset.
+  const { id: projectId } = await params;
+
   try {
     const user = await verifyTokenAndGetUser(request.headers.get('authorization'));
-    const { id: projectId } = await params;
 
     const projectsService = getProjectsService();
     const documentsService = getDocumentsService();

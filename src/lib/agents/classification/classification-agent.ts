@@ -292,7 +292,7 @@ RESPOND WITH: Structured analysis including detected frameworks, confidence scor
       console.error("Error in classification postprocessing:", error);
 
       // Return fallback response with basic framework detection
-      return this.createFallbackResponse(input.data);
+      return await this.createFallbackResponse(input.data);
     }
   }
 
@@ -754,11 +754,18 @@ Focus on frameworks most relevant to the project context and regulatory environm
     };
   }
 
-  private createFallbackResponse(
+  /**
+   * async because extractFrameworksFromResponse is. Without the await below,
+   * `fallbackFrameworks` was a Promise, `.length` on it was undefined, and the
+   * `> 0` test was therefore always false — so the keyword fallback never
+   * returned anything it found and this method always produced the empty
+   * response instead.
+   */
+  private async createFallbackResponse(
     input: ClassificationInput
-  ): ClassificationOutput {
+  ): Promise<ClassificationOutput> {
     // Use keyword-based detection as fallback instead of generic response
-    const fallbackFrameworks = this.extractFrameworksFromResponse(
+    const fallbackFrameworks = await this.extractFrameworksFromResponse(
       "", // empty AI response
       input.projectDescription,
       input.documentContent

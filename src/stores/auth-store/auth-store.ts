@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { User } from 'firebase/auth';
-import { getFirebaseAuth, signInWithGoogle, logOut, initializeTokens } from '@/lib/firebase/firebase';
+import { getFirebaseAuth, isFirebaseConfigured, signInWithGoogle, logOut, initializeTokens } from '@/lib/firebase/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 interface AuthState {
@@ -33,6 +33,16 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   // Initialize Firebase auth listener
   initializeAuth: () => {
+    // Runs from the root layout, so it is on the path of every page including
+    // the ones that need no account. Without a Firebase project configured,
+    // getAuth() throws and takes the entire client render with it — which is
+    // what made the public demo page render an application error rather than
+    // the demo. Settle as signed-out instead.
+    if (!isFirebaseConfigured()) {
+      set({ user: null, loading: false, isInitialized: true });
+      return () => {};
+    }
+
     // Initialize OAuth tokens from sessionStorage
     initializeTokens();
 

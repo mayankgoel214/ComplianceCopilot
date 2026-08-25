@@ -11,8 +11,24 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Complai",
-  description: "Enterprise-grade compliance management platform for Fortune 500 companies",
+  // Without metadataBase the generated og:image resolves relative and the
+  // link-preview card comes out blank.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ??
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : "http://localhost:3000")
+  ),
+  title: "ComplianceCopilot — read a data management plan like a regulator",
+  description:
+    "Reads project documents, works out which frameworks apply — FERPA, HIPAA, GDPR, the Common Rule, export control — and scores against each, quoting the passage behind every finding.",
+  openGraph: {
+    title: "ComplianceCopilot",
+    description:
+      "An agent pipeline that reads a data management plan, decides which regulations apply, and scores it against them with citations.",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({

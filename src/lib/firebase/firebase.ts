@@ -24,6 +24,17 @@ let firebaseApp: FirebaseApp | undefined;
 let authInstance: Auth | undefined;
 let googleProviderInstance: GoogleAuthProvider | undefined;
 
+/**
+ * Whether a Firebase project is configured for this deployment.
+ *
+ * The public pages — the landing page and the demo — need no account, so a
+ * deployment can legitimately run without Firebase. Callers check this rather
+ * than letting getAuth() throw and take the whole client render with it.
+ */
+export function isFirebaseConfigured(): boolean {
+  return Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+}
+
 function getFirebaseApp(): FirebaseApp {
   if (!firebaseApp) {
     firebaseApp = initializeApp(firebaseConfig);

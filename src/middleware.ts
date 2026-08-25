@@ -14,6 +14,13 @@ export function middleware(request: NextRequest) {
   // since Firebase auth state is managed client-side
   // The middleware will only handle API route protection via Authorization headers
 
+  // The demo route is public by design: it takes no input, runs against a
+  // fixed document, and is rate limited. It is the only API route reachable
+  // without a bearer token.
+  if (pathname.startsWith('/api/demo/')) {
+    return NextResponse.next();
+  }
+
   // Only redirect to login for API routes that require auth
   if (pathname.startsWith('/api/') && !isPublicRoute) {
     const authHeader = request.headers.get('Authorization');

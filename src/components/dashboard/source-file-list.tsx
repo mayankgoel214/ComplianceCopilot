@@ -569,7 +569,10 @@ export function SourceFileList({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchFolderContents}
+                  // Wrapped: passing the function directly hands React's click
+                  // event to `retryCount`, so the 401 refresh branch (which
+                  // tests retryCount === 0) never ran and retryCount + 1 was NaN.
+                  onClick={() => fetchFolderContents()}
                 >
                   <RefreshCw size={14} className="mr-1" />
                   Retry
@@ -610,7 +613,7 @@ export function SourceFileList({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={fetchFolderContents}
+                onClick={() => fetchFolderContents()}
                 disabled={loading}
                 aria-label="Refresh folder contents"
               >

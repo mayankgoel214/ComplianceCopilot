@@ -889,7 +889,7 @@ export function SourceFileList({
               {selectedCount === 1 ? "file" : "files"} from this project?
               <br />
               <strong>
-                The files will remain in your Google Drive and won't be deleted.
+                The files will remain in your Google Drive and won&rsquo;t be deleted.
               </strong>
             </DialogDescription>
           </DialogHeader>

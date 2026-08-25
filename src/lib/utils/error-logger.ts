@@ -13,6 +13,12 @@ export interface ErrorLogContext {
   input?: unknown;
   context?: unknown;
   timestamp?: string;
+
+  // Call sites attach whatever else made the failure legible — which analysis
+  // was requested, which framework, which document. Naming every one of them
+  // here would mean editing this interface each time something new is logged,
+  // and a log context is the one place arbitrary detail is the point.
+  [key: string]: unknown;
 }
 
 export class ErrorLogger {

@@ -155,7 +155,7 @@ export function CreateProjectDialog({
               Select Your Use Case
             </DialogTitle>
             <DialogDescription className="text-xl text-muted-foreground max-w-4xl mx-auto">
-              Choose the type of project you're working on to get tailored compliance checks.
+              Choose the type of project you&rsquo;re working on to get tailored compliance checks.
             </DialogDescription>
           </DialogHeader>
         </div>

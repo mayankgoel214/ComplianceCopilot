@@ -170,7 +170,7 @@ export default function LoginPage() {
                       ))}
                     </div>
                     <blockquote className="text-enterprise-text-secondary mb-4">
-                      "{testimonial.quote}"
+                      &ldquo;{testimonial.quote}&rdquo;
                     </blockquote>
                     <div>
                       <p className="text-enterprise-text-primary font-semibold">

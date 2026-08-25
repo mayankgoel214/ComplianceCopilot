@@ -129,7 +129,7 @@ export function SyncStatus({
         <Alert variant="destructive" className="text-sm">
           <WifiOff size={14} />
           <AlertDescription>
-            No internet connection. Changes will sync when you're back online.
+            No internet connection. Changes will sync when you&rsquo;re back online.
           </AlertDescription>
         </Alert>
       )}

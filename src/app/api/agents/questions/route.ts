@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     // First, run the classification agent to get fresh framework detection
     let detectedFrameworks: string[] = context.detectedFrameworks || [];
-    let complianceGaps: string[] = context.complianceGaps || [];
+    const complianceGaps: string[] = context.complianceGaps || [];
 
     try {
       // Find the classification agent for this project

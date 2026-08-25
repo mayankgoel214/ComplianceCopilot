@@ -10,6 +10,7 @@ import {
 } from "./semantic-chunker";
 import { AI_CONFIG } from "../ai/config";
 import { sql } from "../db/neon-client";
+import { EventEmitter } from "node:events";
 
 export interface ProcessingOptions {
   chunking_config?: Partial<ChunkingConfig>;
@@ -67,7 +68,7 @@ export class DocumentProcessor {
   private chromaService = getChromaService();
   private semanticChunker = new SemanticChunker();
   private activeJobs = new Map<string, ProcessingStatus>();
-  private eventEmitter = new (require("events").EventEmitter)();
+  private eventEmitter = new EventEmitter();
 
   /**
    * Process a single document through the complete pipeline

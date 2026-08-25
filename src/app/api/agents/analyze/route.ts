@@ -29,7 +29,12 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch (parseError) {
-      errorLogger.logEndpointError(parseError, "/api/agents/analyze", body);
+      // Not `body` — it is by definition unassigned here, which is what the
+      // parse failed to produce. Logging the raw text is what actually helps
+      // diagnose a malformed payload.
+      errorLogger.logEndpointError(parseError, "/api/agents/analyze", {
+        reason: "request body was not valid JSON",
+      });
       return NextResponse.json(
         {
           error: "Invalid JSON in request body",
@@ -42,9 +47,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // One assertion, here at the boundary, immediately followed by the
+    // validation that makes it true. Destructuring straight off
+    // Record<string, unknown> instead left every field `unknown` and pushed a
+    // cast into each of the dozen places they were used.
+    interface AnalyzeRequest {
+      projectId?: string;
+      projectDescription?: string;
+      documentContent?: string;
+      analysisType?: string;
+      context?: Record<string, unknown>;
+      classificationData?: unknown;
+      frameworkData?: unknown;
+      gradingData?: unknown;
+    }
+
     const {
-      projectId,
-      projectDescription,
+      // Defaulted to "" rather than left possibly-undefined: the validation
+      // below already rejects an empty string, so this keeps the behaviour
+      // identical while letting the type stay `string` for every use after it.
+      projectId = "",
+      projectDescription = "",
       documentContent = "",
       analysisType = "full", // 'classification', 'ideation', 'grading', 'improvement', 'full'
       context = {},
@@ -52,7 +75,7 @@ export async function POST(request: NextRequest) {
       classificationData = null, // For ideation and grader when running standalone
       frameworkData = null, // For grader when running standalone
       gradingData = null, // For improvement when running standalone
-    } = body;
+    } = body as AnalyzeRequest;
 
     // Enhanced input validation with detailed error messages
     const validationErrors: string[] = [];
@@ -81,15 +104,20 @@ export async function POST(request: NextRequest) {
       validationErrors.push("Document content must be a string");
     }
 
+    // Narrowed against the tuple rather than cast: the body arrives as
+    // Record<string, unknown>, so this is the point where an untrusted value
+    // becomes a known one.
+    const ANALYSIS_TYPES = [
+      "classification",
+      "ideation",
+      "grading",
+      "improvement",
+      "full",
+    ] as const;
+
     if (
       analysisType &&
-      ![
-        "classification",
-        "ideation",
-        "grading",
-        "improvement",
-        "full",
-      ].includes(analysisType)
+      !ANALYSIS_TYPES.includes(analysisType as (typeof ANALYSIS_TYPES)[number])
     ) {
       validationErrors.push(
         "Analysis type must be one of: classification, ideation, grading, improvement, full"

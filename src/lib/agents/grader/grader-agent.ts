@@ -182,6 +182,10 @@ PROVIDE: Detailed framework scores, prioritized gaps, and practical remediation 
    * frequently came back missing.
    */
   protected outputSchema() {
+    // Declared inline and used exactly once. Reusing a shared sub-schema in two
+    // places makes the JSON Schema come out with a $ref, and Gemini's function
+    // declarations reject $ref outright:
+    //   Unknown name "$ref" at 'tools[0].function_declarations[...].items'
     const gap = z.object({
       requirement: z.string().describe("The specific obligation not being met"),
       framework: z.string(),
@@ -222,10 +226,11 @@ PROVIDE: Detailed framework scores, prioritized gaps, and practical remediation 
           ]),
         })
       ),
-      prioritizedGaps: z
-        .array(gap)
-        .describe("Every gap across all frameworks, most severe first"),
     });
+    // prioritizedGaps is deliberately not requested. postprocessOutput derives
+    // it with prioritizeGaps(frameworkScores), so asking the model for it would
+    // both duplicate the gap schema — producing the $ref Gemini rejects — and
+    // invite an ordering that disagrees with the one the code computes.
   }
 
   protected async postprocessOutput(result: any, input: AgentInput<GraderInput>): Promise<GraderOutput> {

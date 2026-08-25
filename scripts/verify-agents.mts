@@ -80,7 +80,8 @@ await stage('classification', async () => {
   if (detected.length === 0) throw new Error('no frameworks detected');
   return detected
     .slice(0, 5)
-    .map((f: { name: string; confidence: number }) => `${f.name} (${f.confidence?.toFixed?.(2) ?? '?'})`)
+    .map((f: { name: string; confidence: number }) =>
+      `${f.name.split(' (')[0]} ${f.confidence?.toFixed?.(2) ?? '?'}`)
     .join(', ');
 });
 
@@ -129,10 +130,11 @@ await stage('grader', async () => {
   });
   const scores = out?.data?.frameworkScores ?? [];
   if (scores.length === 0) throw new Error('no framework scores produced');
-  return scores
+  const overall = out?.data?.overallComplianceScore;
+  return `overall ${overall ?? '?'}/100 — ` + scores
     .slice(0, 4)
-    .map((s: { framework?: string; name?: string; score?: number }) =>
-      `${s.framework ?? s.name}: ${s.score ?? '?'}`)
+    .map((s: { framework?: string; overallScore?: number; readinessLevel?: string }) =>
+      `${(s.framework ?? '?').split(' (')[0]} ${s.overallScore ?? '?'}/100 (${s.readinessLevel ?? '?'})`)
     .join(', ');
 });
 

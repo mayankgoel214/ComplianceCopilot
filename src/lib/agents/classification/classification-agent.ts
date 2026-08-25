@@ -173,6 +173,45 @@ RESPOND WITH: Structured analysis including detected frameworks, confidence scor
     }
   }
 
+  /**
+   * Asked of the model directly, rather than recovered from its prose.
+   *
+   * The previous parser looked for each framework name in the response text and
+   * then hunted nearby for a number. That is how confidence ended up wrong: the
+   * prompt asks for 0.0-1.0 and the parser divided the captured value by 100,
+   * so a reported 0.95 was stored as 0.0095.
+   */
+  protected outputSchema() {
+    return z.object({
+      detectedFrameworks: z
+        .array(
+          z.object({
+            name: z
+              .string()
+              .describe("Framework name, exactly as listed in AVAILABLE FRAMEWORKS"),
+            confidence: z
+              .number()
+              .min(0)
+              .max(1)
+              .describe("How certain this framework applies, from 0.0 to 1.0"),
+            relevanceScore: z
+              .number()
+              .min(0)
+              .max(1)
+              .describe("How important this framework is to the project, 0.0 to 1.0"),
+            reasoning: z
+              .string()
+              .describe("Why this framework applies, citing the project specifics"),
+            requirements: z
+              .array(z.string())
+              .describe("The concrete obligations this framework imposes here"),
+            priority: z.enum(["critical", "high", "medium", "low"]),
+          })
+        )
+        .describe("Every framework that applies, most relevant first"),
+    });
+  }
+
   protected async postprocessOutput(
     result: any,
     input: AgentInput<ClassificationInput>
@@ -186,15 +225,29 @@ RESPOND WITH: Structured analysis including detected frameworks, confidence scor
         return this.createTestingModeResponse(input.data, startTime);
       }
 
-      // Normal AI processing
-      // Parse the AI response and structure it properly
       const aiResponse = result.output || result.text || "";
 
-      // Try to parse frameworks from AI response first
       let detectedFrameworks: ClassificationOutput["detectedFrameworks"] = [];
 
-      if (aiResponse && aiResponse.trim()) {
-        // First attempt: Parse structured AI response
+      // Preferred path: the model answered against outputSchema(), so the
+      // values are already typed and need no interpretation.
+      const structured = result.structured as
+        | { detectedFrameworks?: ClassificationOutput["detectedFrameworks"] }
+        | undefined;
+
+      if (structured?.detectedFrameworks?.length) {
+        detectedFrameworks = structured.detectedFrameworks.map((f) => ({
+          ...f,
+          // Kept for older models that still answer on a 0-100 scale.
+          confidence: f.confidence > 1 ? f.confidence / 100 : f.confidence,
+          relevanceScore:
+            f.relevanceScore > 1 ? f.relevanceScore / 100 : f.relevanceScore,
+          requirements: f.requirements?.length
+            ? f.requirements
+            : this.getFrameworkRequirements(f.name),
+        }));
+      } else if (aiResponse && aiResponse.trim()) {
+        // Fallback for a model that ignored the schema.
         detectedFrameworks = await this.parseAIResponse(aiResponse);
       }
 

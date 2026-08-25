@@ -307,6 +307,36 @@ Remember: Your primary job is to search through the user's uploaded compliance d
     }
   }
 
+  /**
+   * Asked of the model directly rather than split out of prose.
+   *
+   * Question text previously came from slicing the response apart, which is why
+   * a generated question could begin mid-sentence — the split landed inside a
+   * citation rather than at a question boundary.
+   */
+  protected outputSchema() {
+    return z.object({
+      questions: z.array(
+        z.object({
+          id: z.string().describe("A short stable identifier, e.g. q1"),
+          question: z
+            .string()
+            .describe("The complete question, as a single sentence addressed to the user"),
+          category: z.enum([
+            "implementation",
+            "gap_filling",
+            "risk_clarification",
+            "process",
+          ]),
+          priority: z.enum(["high", "medium", "low"]),
+          framework: z.string().describe("The framework this question serves"),
+          reasoning: z.string().describe("Why this question needs asking"),
+          expectedAnswerType: z.enum(["text", "boolean", "choice", "numeric"]),
+        })
+      ),
+    });
+  }
+
   protected async postprocessOutput(
     result: any,
     input: AgentInput<IdeationInput>
@@ -427,8 +457,16 @@ ALWAYS cite your sources from the vector search results.`;
 
     let questions: QuestionOutput["questions"] = [];
 
-    // First try to parse questions from AI response
-    if (aiResponse && aiResponse.trim()) {
+    // Preferred path: answered against outputSchema(), so each question arrives
+    // whole rather than as a slice of the response text.
+    const structured = result.structured as
+      | { questions?: QuestionOutput["questions"] }
+      | undefined;
+
+    if (structured?.questions?.length) {
+      questions = structured.questions;
+    } else if (aiResponse && aiResponse.trim()) {
+      // Fallback for a model that ignored the schema.
       questions = await this.parseQuestionsFromAIResponse(aiResponse, context);
     }
 

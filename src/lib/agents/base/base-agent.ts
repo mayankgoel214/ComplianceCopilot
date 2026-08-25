@@ -9,6 +9,7 @@ import {
 import { Tool } from "@langchain/core/tools";
 import { createAgent } from "langchain";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
 import { getGeminiApiKey, AI_CONFIG } from "../../ai/config";
 import { errorLogger } from "../../utils/error-logger";
 import {
@@ -53,10 +54,17 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       // single createAgent. Subclasses still describe themselves with a
       // ChatPromptTemplate, so the system text is lifted out of it here rather
       // than rewriting all five agents.
+      // An agent that declares an output schema gets structured output from
+      // the model instead of prose. That matters here because the original
+      // implementation recovered its numbers by running regexes over the
+      // model's sentences, which is how confidence scores ended up wrong.
+      const responseFormat = this.outputSchema?.();
+
       this.executor = createAgent({
         model: this.model,
         tools: this.tools,
         systemPrompt: await this.extractSystemPrompt(),
+        ...(responseFormat ? { responseFormat } : {}),
       });
 
       this.initialized = true;
@@ -312,8 +320,15 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
    * from the tool calls in the transcript, since the agents use it to report
    * which tools ran.
    */
+  /**
+   * Optional. An agent that implements this receives the model's answer already
+   * parsed into this shape, rather than having to recover it from prose.
+   */
+  protected outputSchema?(): z.ZodTypeAny;
+
   protected adaptAgentResult(raw: unknown): {
     output: string;
+    structured?: unknown;
     intermediateSteps: Array<{ action: { tool: string }; observation: unknown }>;
   } {
     const messages =
@@ -345,7 +360,12 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       }
     }
 
-    return { output, intermediateSteps };
+    return {
+      output,
+      structured: (raw as { structuredResponse?: unknown } | undefined)
+        ?.structuredResponse,
+      intermediateSteps,
+    };
   }
 
   protected abstract createPrompt(): ChatPromptTemplate;

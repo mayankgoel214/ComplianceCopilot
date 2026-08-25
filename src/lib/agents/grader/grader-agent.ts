@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { BaseAgent } from '../base/base-agent';
 import { AgentMetadata, AgentInput } from '../base/types';
 import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
@@ -173,13 +174,74 @@ PROVIDE: Detailed framework scores, prioritized gaps, and practical remediation 
     return { ...input, data: validatedData };
   }
 
+  /**
+   * Asked of the model directly rather than recovered from prose.
+   *
+   * Scores were previously found by running regexes over the model's sentences
+   * and calling parseInt on whatever number turned up nearby, which is why they
+   * frequently came back missing.
+   */
+  protected outputSchema() {
+    const gap = z.object({
+      requirement: z.string().describe("The specific obligation not being met"),
+      framework: z.string(),
+      severity: z.enum(["critical", "high", "medium", "low"]),
+      currentStatus: z.enum(["missing", "partial", "inadequate", "needs_review"]),
+      evidence: z
+        .array(z.string())
+        .describe("Quotes or references from the supplied documents"),
+      impact: z.string(),
+      effort: z.enum(["low", "medium", "high"]),
+    });
+
+    return z.object({
+      overallComplianceScore: z
+        .number()
+        .min(0)
+        .max(100)
+        .describe("Weighted average across all frameworks, 0 to 100"),
+      frameworkScores: z.array(
+        z.object({
+          framework: z.string(),
+          overallScore: z.number().min(0).max(100),
+          breakdown: z.object({
+            dataProtection: z.number().min(0).max(100),
+            accessControls: z.number().min(0).max(100),
+            documentation: z.number().min(0).max(100),
+            procedures: z.number().min(0).max(100),
+            monitoring: z.number().min(0).max(100),
+          }),
+          gaps: z.array(gap),
+          strengths: z.array(z.string()),
+          criticalIssues: z.array(z.string()),
+          readinessLevel: z.enum([
+            "not_ready",
+            "partially_ready",
+            "mostly_ready",
+            "compliant",
+          ]),
+        })
+      ),
+      prioritizedGaps: z
+        .array(gap)
+        .describe("Every gap across all frameworks, most severe first"),
+    });
+  }
+
   protected async postprocessOutput(result: any, input: AgentInput<GraderInput>): Promise<GraderOutput> {
     try {
       const aiResponse = result.output || result.text || '';
       let frameworkScores: FrameworkScore[] = [];
 
-      // First try to parse scores from AI response
-      if (aiResponse && aiResponse.trim()) {
+      // Preferred path: answered against outputSchema(), already typed.
+      const structured = result.structured as
+        | { frameworkScores?: FrameworkScore[] }
+        | undefined;
+
+      if (structured?.frameworkScores?.length) {
+        frameworkScores = structured.frameworkScores;
+      } else if (aiResponse && aiResponse.trim()) {
+        // Fallback for a model that ignored the schema.
         frameworkScores = await this.parseFrameworkScoresFromAI(aiResponse, input.data);
       }
 

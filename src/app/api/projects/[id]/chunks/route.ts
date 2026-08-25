@@ -53,32 +53,15 @@ export async function GET(
 
     const retriever = getChunkRetriever();
 
-    // Build WHERE conditions
-    const conditions = [`d.project_id = ${projectId}`];
-    const params: any[] = [];
-
-    if (documentId) {
-      conditions.push(`dc.document_id = $${conditions.length}`);
-      params.push(documentId);
-    }
-
-    if (chunkType) {
-      conditions.push(`dc.chunk_type = $${conditions.length}`);
-      params.push(chunkType);
-    }
-
-    if (hierarchyLevel !== null) {
-      const level = parseInt(hierarchyLevel);
-      if (!isNaN(level)) {
-        conditions.push(`dc.hierarchy_level = $${conditions.length}`);
-        params.push(level);
-      }
-    }
-
-    if (headingPath) {
-      conditions.push(`$${conditions.length} = ANY(dc.heading_path)`);
-      params.push(headingPath);
-    }
+    // A hand-built WHERE clause and parameter array used to be assembled here.
+    // Both were dead: the query below is a tagged template that interpolates its
+    // own filters safely, and neither array was ever read. The parameter array
+    // was also named `params`, which shadowed the route's destructured `params`
+    // across the whole function — so `await params` above sat in its temporal
+    // dead zone and this endpoint threw a ReferenceError on every request.
+    //
+    // The condition strings also embedded ${projectId} directly, which would
+    // have been an injection had anything used them.
 
     // Build ORDER BY clause
     const validSortFields = ['position', 'created_at', 'tokens', 'hierarchy_level', 'semantic_density'];

@@ -9,6 +9,8 @@ import { verifyTokenAndGetUser } from "@/lib/auth/auth-service";
 import { getProjectsService } from "@/lib/db/projects-service";
 import { getDocumentsService } from "@/lib/db/documents-service";
 import { errorLogger } from "@/lib/utils/error-logger";
+import type { ClassificationOutput } from "@/lib/agents/classification";
+import type { QuestionOutput } from "@/lib/agents/ideation";
 
 // Initialize the agent system on first load
 let systemInitialized = false;
@@ -182,7 +184,7 @@ export async function POST(request: NextRequest) {
           analysisDepth: "thorough" as const,
         };
 
-        const classificationResult = await registry.executeAgent(
+        const classificationResult = await registry.executeAgent<unknown, ClassificationOutput>(
           classificationAgent.metadata.id,
           classificationInput,
           {
@@ -264,7 +266,7 @@ export async function POST(request: NextRequest) {
 
       while (retryCount < maxRetries) {
         try {
-          questionResult = await registry.executeAgent(
+          questionResult = await registry.executeAgent<unknown, QuestionOutput>(
             ideationAgent.metadata.id,
             ideationInput,
             agentContext
@@ -454,17 +456,22 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper functions
-function mapAnswerTypeToUIType(agentType: string): string {
+// Accepts undefined because a question may arrive without an expected answer
+// type; the switch below already falls through to a default.
+function mapAnswerTypeToUIType(agentType: string | undefined): string {
   const typeMap: Record<string, string> = {
     text: "text",
     boolean: "boolean",
     choice: "multiple-choice",
     numeric: "number",
   };
-  return typeMap[agentType] || "text";
+  return (agentType && typeMap[agentType]) || "text";
 }
 
-function generateOptionsForType(answerType: string, category: string): string[] | undefined {
+function generateOptionsForType(
+  answerType: string | undefined,
+  category: string | undefined
+): string[] | undefined {
   if (answerType === "boolean") {
     return ["Yes", "No"];
   }

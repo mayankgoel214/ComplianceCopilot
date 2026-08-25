@@ -219,7 +219,13 @@ PROVIDE: Detailed recommendations with implementation plans, timelines, and reso
   }
 
   protected async preprocessInput(input: AgentInput<ImprovementInput>): Promise<AgentInput<ImprovementInput>> {
-    const validatedData = ImprovementInputSchema.parse(input.data);
+    // The zod schema validates a subset of ImprovementInput — its
+    // frameworkScores entries declare only framework, overallScore and gaps —
+    // so parse() returns a narrower shape than the interface promises. Asserted
+    // back to the contract the caller already satisfied.
+    const validatedData = ImprovementInputSchema.parse(
+      input.data
+    ) as ImprovementInput;
     return { ...input, data: validatedData };
   }
 

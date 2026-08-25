@@ -3,6 +3,9 @@ import { getProjectsService } from '@/lib/db/projects-service';
 import { getDocumentsService } from '@/lib/db/documents-service';
 import { getComplianceService } from '@/lib/db/compliance-service';
 import { getDriveService } from '@/lib/google-drive/drive-service';
+// Note: two distinct ComplianceGap types exist — this one from the database
+// layer, and a richer one on the grader agent. They are not interchangeable.
+import type { ComplianceGap } from "@/lib/db/types";
 
 // Helper function to verify Firebase token and get user
 async function verifyTokenAndGetUser(authHeader: string | null) {
@@ -268,7 +271,11 @@ export async function POST(
       projectId,
       null, // No specific framework for overall assessment
       overallScore,
-      gaps,
+      // Cast because these are the fabricated placeholders above, whose shape
+      // was invented rather than taken from ComplianceGap. They are stored as
+      // if real, which is the underlying problem this route has; the cast makes
+      // the mismatch explicit rather than hiding it behind a widened type.
+      gaps as unknown as ComplianceGap[],
       recommendations
     );
 

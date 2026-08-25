@@ -669,7 +669,13 @@ export class ReportService {
       analysisVersion: '1.0.0-testing',
       processingTime: 150, // Simulated processing time
       agentsUsed: ['classification', 'grading', 'improvement', 'ideation'],
-      documentVersions: documents.map(doc => ({ id: doc.id || 'example-md', version: '1.0.0' }))
+      // The field names are documentId and analyzedAt; `id` alone did not
+      // match, so every entry was missing both.
+      documentVersions: documents.map(doc => ({
+        documentId: doc.id || 'example-md',
+        version: '1.0.0',
+        analyzedAt: new Date(),
+      }))
     };
 
     return {

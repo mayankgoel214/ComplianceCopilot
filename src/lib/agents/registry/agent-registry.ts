@@ -68,7 +68,10 @@ export class AgentRegistry {
         agentId.includes("debug-") ||
         agentId.includes("frontend-");
 
-      if (isTestAgent && instance.registeredAt.getTime() < oneHourAgo) {
+      // createdAt, not registeredAt — AgentInstance has no such field, so this
+      // threw reading .getTime() of undefined the moment it found a test agent,
+      // which is exactly when the cleanup was supposed to do something.
+      if (isTestAgent && instance.createdAt.getTime() < oneHourAgo) {
         this.agents.delete(agentId);
         console.log(`Cleared old test agent: ${agentId}`);
       }

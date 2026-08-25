@@ -442,7 +442,9 @@ export class SemanticChunker {
       Math.abs(b.position - chunk2.position) <= 1
     );
 
-    return boundary && boundary.boundary_strength > 0.8;
+    // Boolean(), because `undefined && ...` evaluates to undefined rather than
+    // false and the declared return type is boolean.
+    return Boolean(boundary && boundary.boundary_strength > 0.8);
   }
 
   /**

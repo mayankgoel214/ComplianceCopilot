@@ -28,7 +28,10 @@ export async function testConnection(): Promise<boolean> {
 
 // Helper function to execute queries with error handling
 export async function executeQuery<T = any>(
-  query: (sql: typeof import('@neondatabase/serverless').neon) => Promise<T>
+  // The callback receives the query function, not neon() the factory that
+  // creates it — the previous annotation described the wrong one, so the
+  // argument never matched what is actually passed below.
+  query: (sql: typeof import('./neon-client').sql) => Promise<T>
 ): Promise<T> {
   try {
     return await query(sql);

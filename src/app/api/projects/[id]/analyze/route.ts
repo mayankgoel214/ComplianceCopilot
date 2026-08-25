@@ -89,10 +89,38 @@ function detectComplianceFrameworks(content: string, projectDescription: string)
   }).filter(f => f.confidence > 0.2); // Only return frameworks with reasonable confidence
 }
 
-// Generate mock compliance gaps and recommendations
+interface MockGap {
+  requirement_id: string;
+  title: string;
+  description: string;
+  severity: 'high' | 'medium';
+  recommendation: string;
+}
+
+interface MockRecommendation {
+  title: string;
+  description: string;
+  action_items: string[];
+  priority: 'high' | 'medium';
+  estimated_effort: string;
+}
+
+/**
+ * FABRICATED OUTPUT — NOT A REAL ANALYSIS.
+ *
+ * Scores here come from Math.random() and the gaps are templated from the
+ * framework name. Nothing reads the project's documents. For a tool whose
+ * purpose is compliance assessment this is the most misleading thing it can
+ * do, because the output is indistinguishable from a real finding to whoever
+ * reads it.
+ *
+ * The real analysis is the agent pipeline behind /api/agents/analyze. This
+ * route should either call that or be removed; it is left in place only
+ * because deleting an endpoint the UI may still call is a separate change.
+ */
 function generateComplianceAnalysis(frameworks: Array<{ name: string; confidence: number }>) {
-  const gaps = [];
-  const recommendations = [];
+  const gaps: MockGap[] = [];
+  const recommendations: MockRecommendation[] = [];
 
   frameworks.forEach(framework => {
     const score = Math.max(0.3, Math.random() * 0.8); // Mock score between 30-80%
@@ -103,7 +131,7 @@ function generateComplianceAnalysis(frameworks: Array<{ name: string; confidence
         requirement_id: `${framework.name.toLowerCase()}-001`,
         title: `${framework.name} Documentation Gap`,
         description: `Missing or incomplete ${framework.name} compliance documentation`,
-        severity: score < 0.5 ? 'high' : 'medium',
+        severity: (score < 0.5 ? 'high' : 'medium') as MockGap['severity'],
         recommendation: `Review and update ${framework.name} compliance procedures`
       });
     }
@@ -117,7 +145,7 @@ function generateComplianceAnalysis(frameworks: Array<{ name: string; confidence
         `Update documentation templates`,
         `Train staff on ${framework.name} requirements`
       ],
-      priority: score < 0.6 ? 'high' : 'medium',
+      priority: (score < 0.6 ? 'high' : 'medium') as MockRecommendation['priority'],
       estimated_effort: '2-4 weeks'
     });
   });

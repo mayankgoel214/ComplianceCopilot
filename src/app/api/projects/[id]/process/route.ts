@@ -102,8 +102,10 @@ export async function POST(
         success: true,
         message: `Processing completed for ${results.length} documents`,
         results,
-        total_processed: results.filter((r) => !r.error).length,
-        total_failed: results.filter((r) => r.error).length,
+        // results is a union of successful ProcessingResult and a failure
+        // shape; only the latter carries `error`, so membership is the test.
+        total_processed: results.filter((r) => !("error" in r)).length,
+        total_failed: results.filter((r) => "error" in r).length,
       });
     } else {
       // Process entire project

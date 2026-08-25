@@ -19,12 +19,12 @@ export const DEFAULT_CHROMA_CONFIG: ChromaConfig = {
   ssl: false,
   collection_metadata: {
     hnsw_space: 'cosine',
-    embedding_function: 'gemini-text-embedding-004'
+    embedding_function: 'gemini-embedding-001'
   }
 };
 
 export const COLLECTION_SETTINGS = {
-  // Standard embedding dimension for text-embedding-004
+  // gemini-embedding-001, pinned to 768 via outputDimensionality
   embedding_dimension: 768,
 
   // Collection naming pattern

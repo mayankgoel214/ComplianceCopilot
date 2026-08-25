@@ -133,40 +133,77 @@ export class GeminiEmbeddingService {
   ): Promise<EmbeddingResult> {
     const taskType = this.getTaskType(options.taskType);
 
-    try {
-      // Configure embeddings instance for this specific task
-      const embedder = new GoogleGenerativeAIEmbeddings({
-        apiKey: getGeminiApiKey(),
-        model: this.config.model,
-        maxRetries: this.config.maxRetries,
-        outputDimensionality: this.config.dimensions,
-        taskType,
-        title: options.title
-      });
+    // Called directly rather than through GoogleGenerativeAIEmbeddings.
+    //
+    // That wrapper accepts an `outputDimensionality` option and, at the version
+    // this project pins, does not implement it — the string does not appear
+    // anywhere in the shipped package. Every request therefore came back at the
+    // model's native 3072 dimensions, failed the 768 check below, and fell
+    // through to the fallback path. The REST API honours the parameter.
+    const embeddings = await this.embedViaRestApi(texts, taskType, options.title);
 
-      const embeddings = options.taskType === 'query'
-        ? [await embedder.embedQuery(texts[0])]
-        : await embedder.embedDocuments(texts);
+    this.validateEmbeddings(embeddings);
 
-      // Validate dimensions
-      this.validateEmbeddings(embeddings);
+    return {
+      embeddings,
+      tokensUsed: this.estimateTokenUsage(texts),
+      requestCount: 1
+    };
+  }
 
-      return {
-        embeddings,
-        tokensUsed: this.estimateTokenUsage(texts),
-        requestCount: 1
-      };
-    } catch (error) {
-      console.error('Gemini embedding API error:', error);
+  /**
+   * Embed a batch through the REST API.
+   *
+   * Errors propagate. There was previously a fallback here that returned
+   * synthetic vectors when a request failed, which is the worst possible
+   * behaviour for a retrieval system: the failure is invisible, the vectors are
+   * meaningless, and every subsequent search returns confident nonsense drawn
+   * from an index quietly filled with noise. A failed embedding must be a
+   * failed embedding.
+   */
+  private async embedViaRestApi(
+    texts: string[],
+    taskType: TaskType,
+    title?: string
+  ): Promise<number[][]> {
+    const endpoint =
+      `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:batchEmbedContents`;
 
-      // Return fallback embeddings
-      const fallbackEmbeddings = texts.map(() => this.createFallbackEmbedding());
-      return {
-        embeddings: fallbackEmbeddings,
-        tokensUsed: this.estimateTokenUsage(texts),
-        requestCount: 0
-      };
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': getGeminiApiKey(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requests: texts.map((text) => ({
+          model: `models/${this.config.model}`,
+          content: { parts: [{ text }] },
+          taskType,
+          outputDimensionality: this.config.dimensions,
+          ...(title ? { title } : {})
+        }))
+      })
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(
+        `Embedding request failed (${response.status}): ${detail.slice(0, 300)}`
+      );
     }
+
+    const body = (await response.json()) as {
+      embeddings?: Array<{ values: number[] }>;
+    };
+
+    if (!body.embeddings || body.embeddings.length !== texts.length) {
+      throw new Error(
+        `Embedding response mismatch: expected ${texts.length}, got ${body.embeddings?.length ?? 0}`
+      );
+    }
+
+    return body.embeddings.map((e) => e.values);
   }
 
   /**

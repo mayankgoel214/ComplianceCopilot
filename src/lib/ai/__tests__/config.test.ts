@@ -3,7 +3,7 @@ import { AI_CONFIG, getGeminiApiKey, type ComplianceFramework } from '../config'
 describe('AI Configuration', () => {
   describe('AI_CONFIG', () => {
     it('should have valid Gemini configuration', () => {
-      expect(AI_CONFIG.gemini.model).toBe('gemini-1.5-pro');
+      expect(AI_CONFIG.gemini.model).toBe('gemini-2.5-flash');
       expect(AI_CONFIG.gemini.temperature).toBeGreaterThanOrEqual(0);
       expect(AI_CONFIG.gemini.temperature).toBeLessThanOrEqual(2);
       expect(AI_CONFIG.gemini.maxTokens).toBeGreaterThan(0);

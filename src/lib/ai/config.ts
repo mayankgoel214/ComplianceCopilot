@@ -6,8 +6,15 @@ export const AI_CONFIG = {
     maxRetries: 3,
   },
   embeddings: {
-    model: 'text-embedding-004',
-    dimensions: 768, // Default dimension for text-embedding-004
+    // text-embedding-004 was retired; the API no longer serves it and every
+    // embedding call returned 404.
+    //
+    // gemini-embedding-001 defaults to 3072 dimensions, but accepts
+    // outputDimensionality — which gemini-embeddings.ts already passes. Holding
+    // it at 768 keeps existing stored vectors comparable with new ones; raising
+    // it would mean re-embedding every document.
+    model: 'gemini-embedding-001',
+    dimensions: 768,
     maxBatchSize: 100,
     rateLimitPerMinute: 60,
     maxRetries: 3,

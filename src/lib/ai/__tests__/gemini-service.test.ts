@@ -24,7 +24,7 @@ describe('GeminiService', () => {
 
   describe('Configuration', () => {
     it('should have valid AI configuration', () => {
-      expect(AI_CONFIG.gemini.model).toBe('gemini-1.5-pro');
+      expect(AI_CONFIG.gemini.model).toBe('gemini-2.5-flash');
       expect(AI_CONFIG.gemini.temperature).toBe(0.1);
       expect(AI_CONFIG.gemini.maxTokens).toBe(8192);
       expect(AI_CONFIG.compliance.frameworks).toContain('FERPA');

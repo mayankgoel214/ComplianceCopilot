@@ -95,7 +95,13 @@ export class ComplianceService {
 
       values.push(frameworkId);
 
-      const result = await sql.unsafe(query, values);
+      // sql.query(text, params), not sql.unsafe(text, params).
+      //
+      // Neon's sql.unsafe() takes a single string and returns a marker for
+      // interpolation inside a tagged template — it executes nothing. Awaiting
+      // it returned that marker rather than rows, so result[0] was undefined
+      // and this update silently did nothing while reporting success.
+      const result = await sql.query(query, values);
       return result[0] as ComplianceFramework;
     } catch (error) {
       console.error('Error updating compliance framework:', error);

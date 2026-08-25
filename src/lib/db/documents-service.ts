@@ -159,7 +159,13 @@ export class DocumentsService {
 
       values.push(documentId);
 
-      const result = await sql.unsafe(query, values);
+      // sql.query(text, params), not sql.unsafe(text, params).
+      //
+      // Neon's sql.unsafe() takes a single string and returns a marker for
+      // interpolation inside a tagged template — it executes nothing. Awaiting
+      // it returned that marker rather than rows, so result[0] was undefined
+      // and this update silently did nothing while reporting success.
+      const result = await sql.query(query, values);
       return result[0] as Document;
     } catch (error) {
       console.error("Error updating document:", error);
@@ -351,12 +357,17 @@ export class DocumentsService {
     documentId: string
   ): Promise<boolean> {
     try {
+      // RETURNING plus a length check, because the tagged template resolves to
+      // a rows array and has no `count`. Reading result.count gave undefined,
+      // so `undefined > 0` was false and this reported failure on every
+      // successful unstar.
       const result = await sql`
         DELETE FROM starred_documents
         WHERE project_id = ${projectId} AND document_id = ${documentId}
+        RETURNING document_id
       `;
 
-      return result.count > 0;
+      return result.length > 0;
     } catch (error) {
       console.error("Error unstarring document:", error);
       throw error;

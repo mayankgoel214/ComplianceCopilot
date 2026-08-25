@@ -19,6 +19,24 @@ interface ProjectData {
     lastAssessmentDate?: Date;
     latestScore?: number;
   };
+  /**
+   * Returned by GET /api/projects/[id] as `compliance`. It was missing from
+   * this interface, so reading projectData.compliance was an error even though
+   * the endpoint has always sent it.
+   */
+  compliance?: {
+    totalFrameworks: number;
+    averageScore: number;
+    highPriorityGaps: number;
+    lastAssessmentDate?: Date;
+    frameworks: Array<{
+      id: string;
+      name: string;
+      score?: number;
+      confidence: number;
+      gapCount: number;
+    }>;
+  };
 }
 
 export default function ProjectIdeatePage({

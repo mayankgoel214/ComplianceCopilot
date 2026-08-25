@@ -392,7 +392,9 @@ export async function POST(request: NextRequest) {
                 }) => ({
                   name: f.name,
                   confidence: f.confidence,
-                  priority: f.priority,
+                  // The grader accepts only these four; anything else the
+                  // classifier reports falls back rather than widening the type.
+                  priority: (f.priority as (typeof frameworks)[number]["priority"]) || "medium",
                 })
               ) ||
               results.classification.data?.detectedFrameworks?.map(
@@ -470,28 +472,41 @@ export async function POST(request: NextRequest) {
               results.grading.data?.prioritizedGaps ||
               [];
           } else if (analysisType === "improvement") {
-            // For standalone improvement testing, create default data
+            // Placeholder input so the improvement agent can be exercised on
+            // its own, without first running classification and grading.
+            //
+            // It was previously written in a shape the grader never produces —
+            // maxScore, percentage, categoryScores — none of which exist on
+            // FrameworkScore or ComplianceGap. Anything downstream reading a
+            // real score off it found undefined. Now it matches the contract,
+            // and the numbers are still invented, which is why this branch runs
+            // only for a standalone improvement request.
             frameworkScores = [
               {
                 framework: "GDPR",
                 overallScore: 65,
-                maxScore: 100,
-                percentage: 65,
-                categoryScores: {
-                  "Data Protection": { score: 60, maxScore: 100 },
-                  "Privacy Rights": { score: 70, maxScore: 100 },
+                breakdown: {
+                  dataProtection: 60,
+                  accessControls: 65,
+                  documentation: 70,
+                  procedures: 65,
+                  monitoring: 65,
                 },
+                gaps: [],
+                strengths: [],
+                criticalIssues: [],
+                readinessLevel: "partially_ready",
               },
             ];
             prioritizedGaps = [
               {
+                requirement: "Data encryption at rest and in transit",
                 framework: "GDPR",
-                category: "Data Protection",
-                description: "Missing data encryption policies",
-                severity: "high" as const,
-                currentScore: 60,
-                maxScore: 100,
-                impact: 40,
+                severity: "high",
+                currentStatus: "missing",
+                evidence: [],
+                impact: "Personal data is not protected against disclosure",
+                effort: "medium",
               },
             ];
           }

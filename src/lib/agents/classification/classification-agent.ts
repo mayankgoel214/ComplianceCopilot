@@ -428,7 +428,7 @@ Focus on frameworks most relevant to the project context and regulatory environm
     for (const [frameworkName, frameworkInfo] of Object.entries(
       frameworkDatabase
     )) {
-      const matches = frameworkInfo.triggers.filter((trigger) =>
+      const matches = frameworkInfo.triggers.filter((trigger: string) =>
         combinedContent.includes(trigger.toLowerCase())
       );
 
@@ -672,12 +672,22 @@ Focus on frameworks most relevant to the project context and regulatory environm
     const primaryDomain = this.getMostCommonDomain(domains);
 
     // Determine overall risk level
-    const highestPriority = frameworks.reduce((highest, current) => {
-      const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+    type Priority = "critical" | "high" | "medium" | "low";
+    const priorityOrder: Record<Priority, number> = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
+
+    // Seeded as Priority rather than `"low" as const`, which narrowed the
+    // accumulator to that single literal and rejected every other priority the
+    // reducer can return.
+    const highestPriority = frameworks.reduce<Priority>((highest, current) => {
       return priorityOrder[current.priority] > priorityOrder[highest]
         ? current.priority
         : highest;
-    }, "low" as const);
+    }, "low");
 
     const riskLevel = this.mapPriorityToRisk(highestPriority);
 

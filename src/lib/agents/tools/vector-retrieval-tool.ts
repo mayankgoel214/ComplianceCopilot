@@ -87,7 +87,7 @@ export class VectorRetrievalTool extends BaseTool {
           const collectionInfo = await vectorService.getCollectionInfo(projectId);
           console.log(`Collection info for project ${projectId}:`, collectionInfo);
         } catch (collectionError) {
-          console.log(`Collection check failed for project ${projectId}:`, collectionError.message);
+          console.log(`Collection check failed for project ${projectId}:`, (collectionError as Error).message);
         }
       } catch (vectorError) {
         throw new Error(

@@ -102,8 +102,8 @@ export class TextExtractor {
       return {
         text: data.text,
         metadata: {
-          title: data.info?.Title,
-          author: data.info?.Author,
+          title: data.info?.Title as string | undefined,
+          author: data.info?.Author as string | undefined,
           pages: data.numpages,
           words: data.text.trim().split(/\s+/).length,
         },

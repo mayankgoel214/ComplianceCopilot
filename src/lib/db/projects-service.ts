@@ -171,7 +171,10 @@ export class ProjectsService {
 
       values.push(projectId);
 
-      const result = await sql.unsafe(query, values);
+      // sql.query(text, params), not sql.unsafe(text, params). unsafe() takes a
+      // single string and returns an interpolation marker; it runs nothing, so
+      // this update silently discarded every change while reporting success.
+      const result = await sql.query(query, values);
       return result[0] as Project;
     } catch (error) {
       console.error('Error updating project:', error);

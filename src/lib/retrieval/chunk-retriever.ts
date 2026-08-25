@@ -541,7 +541,7 @@ export class ChunkRetriever {
           created_at: new Date(metadata.created_at),
           source_file_id: metadata.source_file_id,
           source_file_name: metadata.source_file_name,
-          chunking_method: metadata.chunking_method
+          chunking_method: metadata.chunking_method as "structural" | "semantic" | "hybrid"
         }
       };
 

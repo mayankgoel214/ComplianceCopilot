@@ -4,9 +4,10 @@ import {
   AIMessage,
   HumanMessage,
   SystemMessage,
+  ToolMessage,
 } from "@langchain/core/messages";
 import { Tool } from "@langchain/core/tools";
-import { AgentExecutor, createToolCallingAgent } from "langchain/agents";
+import { createAgent } from "langchain";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { getGeminiApiKey, AI_CONFIG } from "../../ai/config";
 import { errorLogger } from "../../utils/error-logger";
@@ -25,7 +26,7 @@ import {
 export abstract class BaseAgent<TInput = any, TOutput = any> {
   protected model: ChatGoogleGenerativeAI;
   protected tools: Tool[] = [];
-  protected executor?: AgentExecutor;
+  protected executor?: ReturnType<typeof createAgent>;
   protected initialized = false;
 
   public readonly metadata: AgentMetadata;
@@ -48,21 +49,14 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       // Initialize tools
       this.tools = await this.initializeTools();
 
-      // Create the agent with tools
-      const prompt = this.createPrompt();
-      const agent = await createToolCallingAgent({
-        llm: this.model,
+      // LangChain 1.x replaced createToolCallingAgent + AgentExecutor with a
+      // single createAgent. Subclasses still describe themselves with a
+      // ChatPromptTemplate, so the system text is lifted out of it here rather
+      // than rewriting all five agents.
+      this.executor = createAgent({
+        model: this.model,
         tools: this.tools,
-        prompt,
-      });
-
-      // Create executor
-      this.executor = new AgentExecutor({
-        agent,
-        tools: this.tools,
-        verbose: false,
-        maxIterations: 10,
-        returnIntermediateSteps: true,
+        systemPrompt: await this.extractSystemPrompt(),
       });
 
       this.initialized = true;
@@ -80,7 +74,10 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       // Validate and sanitize input with better error handling
       let validatedInput: AgentInput<TInput>;
       try {
-        validatedInput = AgentInputSchema.parse(input);
+        // The zod schema declares `data` optional while AgentInput requires
+        // it; parse returns the widened shape, so assert back to the contract
+        // the caller already satisfied.
+        validatedInput = AgentInputSchema.parse(input) as AgentInput<TInput>;
       } catch (validationError) {
         errorLogger.logError(validationError, {
           agentId: this.metadata.id,
@@ -106,13 +103,18 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
       // Pre-process input
       const processedInput = await this.preprocessInput(validatedInput);
 
-      // Execute the agent
-      const result = await this.executor.invoke({
-        input: this.formatInputForAgent(processedInput),
-        chat_history: this.formatChatHistory(
-          processedInput.context.conversationHistory
-        ),
+      // 1.x takes a message list rather than { input, chat_history }, and
+      // returns the full conversation rather than { output, intermediateSteps }.
+      // Both are adapted here so the subclasses' postprocessOutput keeps the
+      // shape it was written against.
+      const raw = await this.executor.invoke({
+        messages: [
+          ...this.formatChatHistory(processedInput.context.conversationHistory),
+          new HumanMessage(this.formatInputForAgent(processedInput)),
+        ],
       });
+
+      const result = this.adaptAgentResult(raw);
 
       // Post-process output
       const output = await this.postprocessOutput(result, processedInput);
@@ -274,6 +276,78 @@ export abstract class BaseAgent<TInput = any, TOutput = any> {
     result: any,
     input: AgentInput<TInput>
   ): Promise<TOutput>;
+  /**
+   * The system instructions, taken from the subclass's ChatPromptTemplate.
+   *
+   * 1.x wants a plain system prompt where the old API took the whole template.
+   * Formatting with every declared variable blank yields the static system text
+   * without requiring each agent to be rewritten.
+   */
+  protected async extractSystemPrompt(): Promise<string> {
+    const template = this.createPrompt();
+    const blanks = Object.fromEntries(
+      template.inputVariables.map((name) => [name, ""])
+    );
+
+    try {
+      const messages = await template.formatMessages(blanks);
+      const system = messages
+        .filter((m) => m.getType() === "system")
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .join("\n\n")
+        .trim();
+      if (system) return system;
+    } catch {
+      // A template with a placeholder that will not accept a blank falls
+      // through to the metadata description, which is never empty.
+    }
+
+    return this.metadata.description;
+  }
+
+  /**
+   * Reshape a 1.x agent result into what the subclasses expect.
+   *
+   * `output` is the final assistant message. `intermediateSteps` is rebuilt
+   * from the tool calls in the transcript, since the agents use it to report
+   * which tools ran.
+   */
+  protected adaptAgentResult(raw: unknown): {
+    output: string;
+    intermediateSteps: Array<{ action: { tool: string }; observation: unknown }>;
+  } {
+    const messages =
+      (raw as { messages?: BaseMessage[] } | undefined)?.messages ?? [];
+
+    const last = messages[messages.length - 1];
+    const output =
+      last && typeof last.content === "string"
+        ? last.content
+        : JSON.stringify(last?.content ?? "");
+
+    const intermediateSteps: Array<{
+      action: { tool: string };
+      observation: unknown;
+    }> = [];
+
+    for (const message of messages) {
+      const calls = (message as AIMessage).tool_calls;
+      if (!calls?.length) continue;
+      for (const call of calls) {
+        const response = messages.find(
+          (m) => m.getType() === "tool" &&
+            (m as ToolMessage).tool_call_id === call.id
+        );
+        intermediateSteps.push({
+          action: { tool: call.name },
+          observation: response?.content ?? null,
+        });
+      }
+    }
+
+    return { output, intermediateSteps };
+  }
+
   protected abstract createPrompt(): ChatPromptTemplate;
 
   // Default implementations that can be overridden

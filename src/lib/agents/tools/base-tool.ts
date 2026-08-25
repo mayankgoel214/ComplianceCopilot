@@ -19,6 +19,13 @@ export interface ToolFallbackConfig {
 }
 
 export abstract class BaseTool extends Tool {
+  // Declared concretely here because LangChain 1.x makes these abstract on the
+  // base class, and an abstract member cannot be assigned from a constructor.
+  // Declaring them satisfies the subclasses too, which otherwise each have to
+  // restate them.
+  name: string;
+  description: string;
+
   public readonly category: string;
   public readonly version: string;
   public readonly dependencies: string[];
@@ -61,7 +68,10 @@ export abstract class BaseTool extends Tool {
     super();
     this.name = name;
     this.description = description;
-    this.schema = schema;
+    // 1.x narrows the tool schema type to a specific ZodEffects shape; this
+    // base class accepts any Zod schema by design, since each tool declares its
+    // own.
+    this.schema = schema as unknown as typeof this.schema;
     this.category = category;
     this.version = version;
     this.dependencies = dependencies;

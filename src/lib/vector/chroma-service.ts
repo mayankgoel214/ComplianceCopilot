@@ -50,6 +50,11 @@ export class ChromaVectorService {
   private client: ChromaClient | null = null;
   private readonly collections: Map<string, Collection> = new Map();
   private readonly config: ChromaConfig;
+  /** Whether initialize() has completed. Read by getVectorService(). */
+  get isInitialized(): boolean {
+    return this.initialized;
+  }
+
   private initialized = false;
 
   constructor(config: Partial<ChromaConfig> = {}) {
@@ -247,7 +252,11 @@ export class ChromaVectorService {
         ids,
         documents,
         embeddings,
-        metadatas,
+        // Chroma types metadata as a flat index signature; ChunkMetadata is a
+        // named shape whose fields all satisfy it.
+        metadatas: metadatas as unknown as Parameters<
+          typeof collection.add
+        >[0]["metadatas"],
       });
 
       console.log(`Added ${chunks.length} chunks to collection`);
@@ -300,16 +309,40 @@ export class ChromaVectorService {
         queryEmbeddings: [queryEmbedding],
         nResults: finalOptions.n_results,
         where: finalOptions.where,
-        whereDocument: finalOptions.where_document,
+        // Chroma narrows this to its own WhereDocument union; the options
+        // object carries it as a plain record.
+        whereDocument: finalOptions.where_document as Parameters<
+          typeof collection.query
+        >[0]["whereDocument"],
         include: finalOptions.include,
       });
 
+      // Chroma returns parallel arrays that may each contain nulls — a hit
+      // whose document text or metadata was not stored comes back as a null in
+      // the corresponding slot rather than being omitted. Dropping those
+      // in-place would misalign the arrays against `ids`, so entries are
+      // filtered together by index and the caller receives only complete hits.
+      const rawIds = results.ids?.[0] ?? [];
+      const rawDocuments = results.documents?.[0] ?? [];
+      const rawMetadatas = results.metadatas?.[0] ?? [];
+      const rawDistances = results.distances?.[0] ?? [];
+      const rawEmbeddings = results.embeddings?.[0] ?? undefined;
+
+      const keep: number[] = [];
+      for (let i = 0; i < rawIds.length; i++) {
+        if (rawIds[i] != null && rawDocuments[i] != null) {
+          keep.push(i);
+        }
+      }
+
       return {
-        ids: results.ids[0] || [],
-        documents: results.documents?.[0] || [],
-        metadatas: (results.metadatas?.[0] || []) as ChunkMetadata[],
-        distances: results.distances?.[0] || [],
-        embeddings: results.embeddings?.[0] || undefined,
+        ids: keep.map((i) => rawIds[i] as string),
+        documents: keep.map((i) => rawDocuments[i] as string),
+        metadatas: keep.map((i) => (rawMetadatas[i] ?? {}) as unknown as ChunkMetadata),
+        distances: keep.map((i) => rawDistances[i] ?? Number.POSITIVE_INFINITY),
+        embeddings: rawEmbeddings
+          ? keep.map((i) => (rawEmbeddings[i] ?? []) as number[])
+          : undefined,
       };
     } catch (error) {
       console.error("Query failed:", error);
@@ -372,10 +405,21 @@ export class ChromaVectorService {
         include: ["metadatas", "documents"],
       });
 
+      // Same nullable parallel arrays as query(): keep only the indices where
+      // both the id and the document survived, so the arrays stay aligned.
+      const rawIds = results.ids ?? [];
+      const rawDocuments = results.documents ?? [];
+      const rawMetadatas = results.metadatas ?? [];
+
+      const keep: number[] = [];
+      for (let i = 0; i < rawIds.length; i++) {
+        if (rawIds[i] != null && rawDocuments[i] != null) keep.push(i);
+      }
+
       return {
-        ids: results.ids,
-        documents: results.documents || [],
-        metadatas: (results.metadatas || []) as ChunkMetadata[],
+        ids: keep.map((i) => rawIds[i] as string),
+        documents: keep.map((i) => rawDocuments[i] as string),
+        metadatas: keep.map((i) => (rawMetadatas[i] ?? {}) as unknown as ChunkMetadata),
         distances: [],
       };
     } catch (error) {
@@ -518,7 +562,7 @@ export class ChromaVectorService {
         try {
           await this.initialize();
         } catch (initError) {
-          console.log("ChromaDB initialization failed during health check:", initError.message);
+          console.log("ChromaDB initialization failed during health check:", (initError as Error).message);
           return false;
         }
       }
@@ -535,11 +579,11 @@ export class ChromaVectorService {
         console.log("ChromaDB health check passed");
         return true;
       } catch (heartbeatError) {
-        console.log("ChromaDB heartbeat failed:", heartbeatError.message);
+        console.log("ChromaDB heartbeat failed:", (heartbeatError as Error).message);
         return false;
       }
     } catch (error) {
-      console.log("ChromaDB health check failed:", error.message);
+      console.log("ChromaDB health check failed:", (error as Error).message);
       return false;
     }
   }
@@ -587,7 +631,7 @@ export async function getVectorService(): Promise<ChromaVectorService> {
   const chromaService = getChromaService();
 
   // Initialize if not already done
-  if (!chromaService.initialized) {
+  if (!chromaService.isInitialized) {
     await chromaService.initialize();
   }
 

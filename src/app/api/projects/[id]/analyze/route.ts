@@ -147,8 +147,10 @@ export async function POST(
       );
     }
 
-    // Get project details
-    const project = await projectsService.getProjectById(projectId);
+    // Ownership is already established by the isProjectOwner check above; the
+    // user is passed here as well so the query cannot return another owner's
+    // row if that check is ever moved or removed.
+    const project = await projectsService.getProjectById(projectId, user.id);
     if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },

@@ -58,8 +58,10 @@ export async function GET(
     const documentsService = getDocumentsService();
     const complianceService = getComplianceService();
 
-    // Get project and verify ownership
-    const project = await projectsService.getProjectById(projectId);
+    // Scoped to the caller. The comment already claimed ownership was being
+    // verified; passing the user is what actually makes that true, since the
+    // lookup previously matched on id alone.
+    const project = await projectsService.getProjectById(projectId, user.id);
     if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },

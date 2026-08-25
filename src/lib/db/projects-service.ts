@@ -73,12 +73,29 @@ export class ProjectsService {
     }
   }
 
-  async getProjectById(projectId: string): Promise<Project | null> {
+  /**
+   * Fetch a project, scoped to its owner when a user is supplied.
+   *
+   * The userId parameter is not optional decoration: four call sites were
+   * already passing `user.id` here under comments about verifying access, and
+   * because the method took a single argument that value was silently
+   * discarded. The lookup matched on id alone, so any authenticated user could
+   * read any project by knowing its id.
+   *
+   * Callers that have a user must pass it. The parameter stays optional only
+   * for internal lookups where ownership has already been established.
+   */
+  async getProjectById(projectId: string, userId?: string): Promise<Project | null> {
     try {
-      const result = await sql`
-        SELECT * FROM projects
-        WHERE id = ${projectId}
-      `;
+      const result = userId
+        ? await sql`
+            SELECT * FROM projects
+            WHERE id = ${projectId} AND user_id = ${userId}
+          `
+        : await sql`
+            SELECT * FROM projects
+            WHERE id = ${projectId}
+          `;
 
       return result.length > 0 ? (result[0] as Project) : null;
     } catch (error) {

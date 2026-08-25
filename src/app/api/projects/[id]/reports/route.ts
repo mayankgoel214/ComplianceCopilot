@@ -36,6 +36,7 @@ export async function POST(
   // referenced projectId and would otherwise throw a ReferenceError while
   // reporting the original failure.
   const { id: projectId } = await params;
+  const reportStartedAt = Date.now();
 
   try {
     await ensureSystemInitialized();
@@ -52,7 +53,11 @@ export async function POST(
       // Ensure projectId matches URL parameter
       body.projectId = projectId;
     } catch (parseError) {
-      errorLogger.logEndpointError(parseError, `/api/projects/${projectId}/reports`, body);
+      // Not `body` — unassigned here by definition, being what the parse failed
+      // to produce.
+      errorLogger.logEndpointError(parseError, `/api/projects/${projectId}/reports`, {
+        reason: "request body was not valid JSON",
+      });
       return NextResponse.json(
         {
           error: "Invalid JSON in request body",
@@ -199,7 +204,14 @@ export async function POST(
                 type: "other" as const,
               })),
             ],
-            implementationDetails: {},
+            // The grader's schema requires all four lists; an empty object
+            // satisfied neither it nor the type.
+            implementationDetails: {
+              existingPolicies: [],
+              securityMeasures: [],
+              dataHandlingPractices: [],
+              accessControls: [],
+            },
           };
 
           const graderResult = await registry.executeAgent(
@@ -270,7 +282,11 @@ export async function POST(
         data: reportData,
         metadata: {
           timestamp: new Date().toISOString(),
-          processingTime: Date.now() - analysisContext.sessionId.split('-')[2],
+          // Measured directly rather than recovered by splitting the session
+          // id on '-' and subtracting a string from a number, which relied on
+          // JavaScript coercing it back and broke silently if the id format
+          // ever changed.
+          processingTime: Date.now() - reportStartedAt,
           agentsUsed: agentTeamIds.length,
           documentsAnalyzed: documents.length,
           frameworksDetected: reportData.frameworkScores.length,

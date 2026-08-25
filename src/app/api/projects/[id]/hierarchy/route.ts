@@ -55,7 +55,9 @@ export async function GET(
     const url = new URL(request.url);
 
     // Parse query parameters
-    const documentId = url.searchParams.get('document_id');
+    // searchParams.get returns null when absent, while the option below is
+    // declared optional — convert once here rather than at the call site.
+    const documentId = url.searchParams.get('document_id') ?? undefined;
     const maxDepth = parseInt(url.searchParams.get('max_depth') || '10');
     const includeContent = url.searchParams.get('include_content') !== 'false';
     const includeMetrics = url.searchParams.get('include_metrics') === 'true';
@@ -106,7 +108,11 @@ export async function GET(
         ORDER BY dc.hierarchy_level, dc.position
       `;
 
-      const documentHierarchy = this.buildDocumentHierarchy(
+      // buildDocumentHierarchy is a module-level function, not a method. Called
+      // as `this.buildDocumentHierarchy` from inside an exported route handler,
+      // where `this` is undefined under ES module strict mode, this endpoint
+      // threw "Cannot read properties of undefined" on every request.
+      const documentHierarchy = buildDocumentHierarchy(
         documentChunks,
         maxDepth,
         includeContent,
@@ -139,7 +145,7 @@ export async function GET(
             heading_path: [],
             hierarchy_level: 0,
             chunk_type: 'document',
-            children: this.buildDocumentHierarchy(
+            children: buildDocumentHierarchy(
               documentChunks,
               maxDepth,
               includeContent,

@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
     version: "1.0.0",
     services: {} as Record<string, any>,
     responseTime: 0,
+    // Set by the catch block below.
+    error: undefined as string | undefined,
   };
 
   try {

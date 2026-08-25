@@ -120,10 +120,12 @@ export async function POST(
       })),
 
       // Include related chunks if available
+      // Related chunks are DocumentChunks reached by document relationship,
+      // not by vector similarity, so they carry no score — the field was always
+      // undefined here. Only the matched chunk above has one.
       related_chunks: chunk.related_chunks?.map(rel => ({
         id: rel.id,
         content: rel.content.substring(0, 200) + (rel.content.length > 200 ? '...' : ''),
-        similarity_score: rel.similarity_score,
         chunk_type: rel.chunk_type
       }))
     }));

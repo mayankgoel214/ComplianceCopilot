@@ -2,14 +2,27 @@ import { BaseAgent } from "../base/base-agent";
 import { AgentMetadata } from "../base/types";
 import { getAgentRegistry } from "./agent-registry";
 import { initializeToolRegistry } from "../tools";
+import { z } from "zod";
 
+// Capability schemas here are placeholders by design: this registry describes
+// what each agent does, while the real validation happens inside the agent
+// against its own input schema. z.unknown() states that honestly, where
+// `{} as unknown` merely silenced the type.
 export interface AgentConfig {
   type: string;
   name?: string;
   description?: string;
   tags?: string[];
   capabilities?: string[];
-  customConfig?: Record<string, unknown>;
+  /**
+   * projectId is named explicitly because every agent factory below reads it
+   * and passes it to a constructor expecting a string. Left inside an untyped
+   * Record it arrived as `unknown` and each of those call sites needed a cast.
+   */
+  customConfig?: {
+    projectId?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface AgentTemplate {
@@ -50,8 +63,8 @@ export class AgentFactory {
             name: "framework_detection",
             description:
               "Detect relevant compliance frameworks from project description and documents",
-            inputSchema: {} as unknown,
-            outputSchema: {} as unknown,
+            inputSchema: z.unknown(),
+            outputSchema: z.unknown(),
           },
         ],
         dependencies: ["chromadb", "gemini-embeddings"],
@@ -86,15 +99,15 @@ export class AgentFactory {
             name: "question_generation",
             description:
               "Generate targeted clarifying questions based on compliance gaps",
-            inputSchema: {} as unknown,
-            outputSchema: {} as unknown,
+            inputSchema: z.unknown(),
+            outputSchema: z.unknown(),
           },
           {
             name: "knowledge_chat",
             description:
               "Interactive Q&A based on compliance knowledge retrieval",
-            inputSchema: {} as unknown,
-            outputSchema: {} as unknown,
+            inputSchema: z.unknown(),
+            outputSchema: z.unknown(),
           },
         ],
         dependencies: ["chromadb", "gemini-embeddings", "web-search"],
@@ -125,8 +138,8 @@ export class AgentFactory {
             name: "compliance_analysis",
             description:
               "Analyze documents and implementation against compliance frameworks",
-            inputSchema: {} as unknown,
-            outputSchema: {} as unknown,
+            inputSchema: z.unknown(),
+            outputSchema: z.unknown(),
           },
         ],
         dependencies: ["document-analysis", "vector-retrieval"],
@@ -153,8 +166,8 @@ export class AgentFactory {
             name: "remediation_planning",
             description:
               "Create detailed remediation plans for compliance gaps",
-            inputSchema: {} as unknown,
-            outputSchema: {} as unknown,
+            inputSchema: z.unknown(),
+            outputSchema: z.unknown(),
           },
         ],
         dependencies: ["web-search", "vector-retrieval"],

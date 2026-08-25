@@ -125,8 +125,18 @@ export async function POST(request: NextRequest) {
     // Build document content summary
     let documentContent = "";
     if (documents.length > 0) {
+      // The document rows returned by getDocumentsByProjectId are `Document`, whose
+      // columns are file_name and file_type. `name`, `type` and `summary` were never
+      // on it, so this interpolation produced the literal string
+      // "Document: undefined\nType: undefined" and the agents analysed that instead
+      // of the project's documents. There is no summary column at all — document text
+      // lives in the chunks table — so the file metadata is what can honestly be
+      // given here.
       documentContent = documents
-        .map(doc => `Document: ${doc.name}\nType: ${doc.type}\nSummary: ${doc.summary || "No summary available"}`)
+        .map(
+          (doc) =>
+            `Document: ${doc.file_name}\nType: ${doc.file_type ?? "unknown"}`
+        )
         .join("\n\n");
     }
 

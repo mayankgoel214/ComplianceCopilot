@@ -101,7 +101,12 @@ export async function POST(
 
     // Build document content for analysis
     const documentContent = documents
-      .map(doc => `Document: ${doc.name}\nType: ${doc.type}\nContent: ${doc.summary || doc.content || "No content available"}`)
+      // Same correction as the questions route: Document has file_name and
+      // file_type, and no summary or content column — the text lives in chunks.
+      .map(
+        (doc) =>
+          `Document: ${doc.file_name}\nType: ${doc.file_type ?? "unknown"}`
+      )
       .join("\n\n");
 
     console.log('Document content for classification:', {
@@ -186,8 +191,8 @@ export async function POST(
               },
               ...documents.map(doc => ({
                 id: doc.id,
-                content: doc.summary || doc.content || "",
-                type: (doc.type as any) || "other" as const,
+                content: "",
+                type: "other" as const,
               })),
             ],
             implementationDetails: {},

@@ -26,8 +26,8 @@ interface ProjectsState {
 // Helper function to get auth token
 async function getAuthToken(): Promise<string> {
   // This will be replaced with proper Firebase auth token retrieval
-  const { auth } = await import("@/lib/firebase/firebase");
-  const user = auth.currentUser;
+  const { getFirebaseAuth } = await import("@/lib/firebase/firebase");
+  const user = getFirebaseAuth().currentUser;
 
   if (!user) {
     throw new Error("No authenticated user");

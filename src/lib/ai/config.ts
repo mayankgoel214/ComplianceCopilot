@@ -1,6 +1,10 @@
 export const AI_CONFIG = {
   gemini: {
-    model: 'gemini-2.5-flash',
+    // gemini-2.5-flash is closed to new API keys — it still appears in the
+    // models listing but returns 404 "no longer available to new users" for any
+    // key created after the cutoff, which is a failure mode that only shows up
+    // on a fresh key and not on the developer's own.
+    model: 'gemini-3.6-flash',
     temperature: 0.1,
     maxTokens: 8192,
     maxRetries: 3,

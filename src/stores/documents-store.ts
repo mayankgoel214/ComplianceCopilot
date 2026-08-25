@@ -27,8 +27,8 @@ interface DocumentsState {
 
 // Helper function to get Firebase ID token for user authentication
 async function getAuthToken(): Promise<string> {
-  const { auth } = await import("@/lib/firebase/firebase");
-  const user = auth.currentUser;
+  const { getFirebaseAuth } = await import("@/lib/firebase/firebase");
+  const user = getFirebaseAuth().currentUser;
 
   if (!user) {
     throw new Error("No authenticated user");

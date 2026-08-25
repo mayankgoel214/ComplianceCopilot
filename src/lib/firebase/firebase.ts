@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, User } from "firebase/auth";
+import { initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, type Auth, User } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -12,20 +12,45 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialised on first use, not at import.
+//
+// This module used to call initializeApp() and getAuth() at the top level, and
+// getAuth() throws immediately when no Firebase key is configured. The agent
+// tools reach this file transitively — document-analysis-tool imports
+// document-processor, which imports the Drive service, which imports this — so
+// merely importing an agent demanded Firebase credentials and threw before any
+// agent code could run. Nothing here needs to happen until someone signs in.
+let firebaseApp: FirebaseApp | undefined;
+let authInstance: Auth | undefined;
+let googleProviderInstance: GoogleAuthProvider | undefined;
 
-// Initialize Firebase Auth
-export const auth = getAuth(app);
+function getFirebaseApp(): FirebaseApp {
+  if (!firebaseApp) {
+    firebaseApp = initializeApp(firebaseConfig);
+  }
+  return firebaseApp;
+}
 
-// Initialize Google Auth Provider with Drive scopes
-const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope('https://www.googleapis.com/auth/drive.readonly');
-googleProvider.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
-googleProvider.setCustomParameters({
-  access_type: 'offline',
-  prompt: 'consent'
-});
+/** The Auth instance, created on first call. */
+export function getFirebaseAuth(): Auth {
+  if (!authInstance) {
+    authInstance = getAuth(getFirebaseApp());
+  }
+  return authInstance;
+}
+
+function getGoogleProvider(): GoogleAuthProvider {
+  if (!googleProviderInstance) {
+    googleProviderInstance = new GoogleAuthProvider();
+    googleProviderInstance.addScope('https://www.googleapis.com/auth/drive.readonly');
+    googleProviderInstance.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
+    googleProviderInstance.setCustomParameters({
+      access_type: 'offline',
+      prompt: 'consent'
+    });
+  }
+  return googleProviderInstance;
+}
 
 // SessionStorage keys for token persistence
 const GOOGLE_ACCESS_TOKEN_KEY = 'google_access_token';
@@ -71,13 +96,15 @@ const clearStoredTokens = () => {
 // Auth helper functions
 export const signInWithGoogle = async (): Promise<User | null> => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = await signInWithPopup(getFirebaseAuth(), getGoogleProvider());
 
     // Extract Google OAuth credentials
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential && credential.accessToken) {
       googleAccessToken = credential.accessToken;
-      googleRefreshToken = credential.refreshToken || null;
+      // OAuthCredential carries no refresh token in the web SDK; a refresh
+      // requires the server-side flow. Recorded as absent rather than pretended.
+      googleRefreshToken = null;
 
       // Store tokens in sessionStorage for persistence
       storeTokens(googleAccessToken, googleRefreshToken);
@@ -100,7 +127,7 @@ export const signInWithGoogle = async (): Promise<User | null> => {
 
 export const logOut = async (): Promise<void> => {
   try {
-    await signOut(auth);
+    await signOut(getFirebaseAuth());
     // Clear stored tokens from memory and sessionStorage
     clearStoredTokens();
   } catch (error) {
@@ -112,7 +139,7 @@ export const logOut = async (): Promise<void> => {
 // Get Google Drive access token from the current user
 export const getDriveAccessToken = async (): Promise<string | null> => {
   try {
-    const user = auth.currentUser;
+    const user = getFirebaseAuth().currentUser;
     if (!user) {
       console.warn("No authenticated user found when requesting Drive access token");
       throw new Error("No authenticated user found");
@@ -145,7 +172,7 @@ export const initializeTokens = (): void => {
 // Check if user has granted Drive permissions
 export const hasDrivePermissions = async (): Promise<boolean> => {
   try {
-    const user = auth.currentUser;
+    const user = getFirebaseAuth().currentUser;
     if (!user) return false;
 
     // If token is not in memory, try to load from sessionStorage
@@ -164,7 +191,7 @@ export const hasDrivePermissions = async (): Promise<boolean> => {
 // Refresh Google OAuth access token
 export const refreshGoogleAccessToken = async (): Promise<string | null> => {
   try {
-    const user = auth.currentUser;
+    const user = getFirebaseAuth().currentUser;
     if (!user) {
       throw new Error("No authenticated user found");
     }
@@ -190,4 +217,6 @@ export const refreshGoogleAccessToken = async (): Promise<string | null> => {
   }
 };
 
-export default app;
+// The app itself is lazy now, so a default export of the instance is not
+// possible. Callers that need it should go through getFirebaseAuth().
+export default getFirebaseApp;

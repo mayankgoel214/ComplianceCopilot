@@ -203,8 +203,8 @@ export function SourceFileList({
 
   // Get Firebase ID token for API authorization
   const getAuthToken = async (): Promise<string> => {
-    const { auth } = await import("@/lib/firebase/firebase");
-    const user = auth.currentUser;
+    const { getFirebaseAuth } = await import("@/lib/firebase/firebase");
+    const user = getFirebaseAuth().currentUser;
 
     if (!user) {
       throw new Error("No authenticated user found");
@@ -244,8 +244,8 @@ export function SourceFileList({
       }
 
       // Force re-authentication by clearing Firebase auth cache
-      const { auth } = await import("@/lib/firebase/firebase");
-      const user = auth.currentUser;
+      const { getFirebaseAuth } = await import("@/lib/firebase/firebase");
+      const user = getFirebaseAuth().currentUser;
       if (user) {
         // Force token refresh by invalidating current token
         await user.getIdToken(true);

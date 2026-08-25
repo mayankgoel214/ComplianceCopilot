@@ -34,7 +34,11 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch (parseError) {
-      errorLogger.logEndpointError(parseError, "/api/agents/questions", body);
+      // Not `body` — it is unassigned here by definition, which is exactly
+      // what the parse failed to produce.
+      errorLogger.logEndpointError(parseError, "/api/agents/questions", {
+        reason: "request body was not valid JSON",
+      });
       return NextResponse.json(
         {
           error: "Invalid JSON in request body",
@@ -47,11 +51,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Typed once here, immediately before the validation that makes it true.
+    // Destructuring straight off Record<string, unknown> left every field
+    // `unknown` and pushed a cast into each of a dozen uses.
+    interface QuestionsRequest {
+      projectId?: string;
+      maxQuestions?: number;
+      context?: {
+        projectDescription?: string;
+        detectedFrameworks?: string[];
+        complianceGaps?: string[];
+      };
+    }
+
     const {
-      projectId,
+      projectId = "",
       maxQuestions = 5,
       context = {},
-    } = body;
+    } = body as QuestionsRequest;
 
     // Enhanced input validation
     const validationErrors: string[] = [];

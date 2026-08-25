@@ -1,3 +1,10 @@
+/**
+ * Fields backed by nullable columns are typed `| null` as well as optional.
+ *
+ * A query returns null for an absent value, never undefined, so a declaration
+ * of `field?: T` alone describes a shape the database cannot produce — and any
+ * check written as `!== undefined` silently passes on a real null.
+ */
 // Database entity types
 
 export interface User {
@@ -27,11 +34,11 @@ export interface Document {
   file_name: string;
   file_type?: string;
   mime_type?: string;
-  drive_url?: string;
-  parent_folder_id?: string;
-  last_modified?: Date;
-  last_analyzed?: Date;
-  file_size?: number;
+  drive_url?: string | null;
+  parent_folder_id?: string | null;
+  last_modified?: Date | null;
+  last_analyzed?: Date | null;
+  file_size?: number | null;
   created_at: Date;
 }
 
@@ -106,20 +113,20 @@ export interface CreateDocumentDTO {
   file_name: string;
   file_type?: string;
   mime_type?: string;
-  drive_url?: string;
-  parent_folder_id?: string;
-  last_modified?: Date;
-  file_size?: number;
+  drive_url?: string | null;
+  parent_folder_id?: string | null;
+  last_modified?: Date | null;
+  file_size?: number | null;
 }
 
 export interface UpdateDocumentDTO {
   file_name?: string;
   file_type?: string;
   mime_type?: string;
-  drive_url?: string;
-  last_modified?: Date;
-  last_analyzed?: Date;
-  file_size?: number;
+  drive_url?: string | null;
+  last_modified?: Date | null;
+  last_analyzed?: Date | null;
+  file_size?: number | null;
 }
 
 export interface CreateStarredDocumentDTO {

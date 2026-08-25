@@ -6,6 +6,7 @@ import {
   IdeationInput,
 } from "@/lib/agents";
 import { errorLogger } from "@/lib/utils/error-logger";
+import type { ChatOutput } from "@/lib/agents/ideation";
 
 // Initialize the agent system on first load
 let systemInitialized = false;
@@ -26,7 +27,11 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json();
     } catch (parseError) {
-      errorLogger.logEndpointError(parseError, "/api/agents/chat", body);
+      // Not `body` — it is unassigned here by definition, which is exactly
+      // what the parse failed to produce.
+      errorLogger.logEndpointError(parseError, "/api/agents/chat", {
+        reason: "request body was not valid JSON",
+      });
       return NextResponse.json(
         {
           error: "Invalid JSON in request body",
@@ -39,12 +44,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Typed once here, immediately before the validation that makes it true.
+    interface ChatRequest {
+      projectId?: string;
+      userQuery?: string;
+      conversationHistory?: Array<{
+        role: "user" | "assistant";
+        content: string;
+        timestamp?: string | Date;
+      }>;
+      context?: {
+        projectDescription?: string;
+        detectedFrameworks?: string[];
+        complianceGaps?: string[];
+        userId?: string;
+        sessionId?: string;
+        sharedState?: Record<string, unknown>;
+        preferences?: Record<string, unknown>;
+      };
+    }
+
     const {
-      projectId,
-      userQuery,
+      projectId = "",
+      userQuery = "",
       conversationHistory = [],
       context = {},
-    } = body;
+    } = body as ChatRequest;
 
     // Enhanced input validation with detailed error messages
     const validationErrors: string[] = [];
@@ -152,9 +177,9 @@ export async function POST(request: NextRequest) {
       },
       conversationHistory: (conversationHistory || []).map(
         (msg: {
-          role?: string;
+          role?: "user" | "assistant";
           content?: string;
-          timestamp?: string | number;
+          timestamp?: string | number | Date;
         }) => ({
           role: msg.role || "user",
           content: (msg.content || "").trim(),
@@ -165,11 +190,11 @@ export async function POST(request: NextRequest) {
 
     try {
       // Execute the ideation agent in chat mode
-      const chatResult = await registry.executeAgent(
+      const chatResult = (await registry.executeAgent(
         ideationAgent.metadata.id,
         ideationInput,
         chatContext
-      );
+      )) as ChatOutput;
 
       // Update conversation history
       const updatedHistory = [

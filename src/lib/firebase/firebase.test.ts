@@ -1,4 +1,4 @@
-import { signInWithGoogle, logOut, auth } from './firebase'
+import { signInWithGoogle, logOut, getFirebaseAuth } from './firebase'
 import { signInWithPopup, signOut, GoogleAuthProvider } from 'firebase/auth'
 import { mockUser } from '@/__mocks__/firebase-auth'
 
@@ -37,11 +37,11 @@ describe('Firebase Auth Functions', () => {
         operationType: 'signIn' as const,
       }
 
-      mockSignInWithPopup.mockResolvedValue(mockResult)
+      mockSignInWithPopup.mockResolvedValue(mockResult as never)
 
       const result = await signInWithGoogle()
 
-      expect(mockSignInWithPopup).toHaveBeenCalledWith(auth, expect.any(GoogleAuthProvider))
+      expect(mockSignInWithPopup).toHaveBeenCalledWith(getFirebaseAuth(), expect.any(GoogleAuthProvider))
       expect(result).toBe(mockUser)
     })
 
@@ -55,7 +55,7 @@ describe('Firebase Auth Functions', () => {
       await expect(signInWithGoogle()).rejects.toThrow('Sign in failed')
 
       expect(consoleSpy).toHaveBeenCalledWith('Error signing in with Google:', error)
-      expect(mockSignInWithPopup).toHaveBeenCalledWith(auth, expect.any(GoogleAuthProvider))
+      expect(mockSignInWithPopup).toHaveBeenCalledWith(getFirebaseAuth(), expect.any(GoogleAuthProvider))
 
       consoleSpy.mockRestore()
     })
@@ -80,7 +80,7 @@ describe('Firebase Auth Functions', () => {
 
       await expect(logOut()).resolves.toBeUndefined()
 
-      expect(mockSignOut).toHaveBeenCalledWith(auth)
+      expect(mockSignOut).toHaveBeenCalledWith(getFirebaseAuth())
     })
 
     it('should handle sign out error', async () => {
@@ -92,12 +92,12 @@ describe('Firebase Auth Functions', () => {
       await expect(logOut()).rejects.toThrow('Sign out failed')
 
       expect(consoleSpy).toHaveBeenCalledWith('Error signing out:', error)
-      expect(mockSignOut).toHaveBeenCalledWith(auth)
+      expect(mockSignOut).toHaveBeenCalledWith(getFirebaseAuth())
 
       consoleSpy.mockRestore()
     })
 
-    it('should handle auth state errors during sign out', async () => {
+    it('should handle getFirebaseAuth() state errors during sign out', async () => {
       const authError = new Error('Auth state error')
       authError.name = 'AuthError'
       mockSignOut.mockRejectedValue(authError)
@@ -111,9 +111,9 @@ describe('Firebase Auth Functions', () => {
     })
   })
 
-  describe('auth object', () => {
-    it('should export auth object', () => {
-      expect(auth).toBeDefined()
+  describe('getFirebaseAuth() object', () => {
+    it('should export getFirebaseAuth() object', () => {
+      expect(getFirebaseAuth()).toBeDefined()
     })
   })
 })

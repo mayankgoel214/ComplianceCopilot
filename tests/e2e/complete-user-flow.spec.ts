@@ -25,7 +25,10 @@ test.describe('Complete Universal Input Processor User Flow', () => {
         }));
 
         // Mock Google Drive API for document picker
-        window.gapi = {
+        // A test double, deliberately wider than the Window.gapi declaration in
+      // google-drive-picker.tsx, which names only load(). Cast rather than
+      // widening the app's global for the benefit of a mock.
+      (window as unknown as Record<string, unknown>).gapi = {
           load: (api: string, callback: Function) => {
             if (api === 'picker') callback();
           },
@@ -42,7 +45,7 @@ test.describe('Complete Universal Input Processor User Flow', () => {
                 setOAuthToken: () => this,
                 addView: () => this,
                 setCallback: (callback: Function) => {
-                  this.pickerCallback = callback;
+                  (this as any).pickerCallback = callback;
                   return this;
                 },
                 build: () => ({
@@ -50,7 +53,7 @@ test.describe('Complete Universal Input Processor User Flow', () => {
                     if (visible) {
                       // Simulate user selecting compliance documents
                       setTimeout(() => {
-                        this.pickerCallback({
+                        (this as any).pickerCallback({
                           action: 'picked',
                           docs: [
                             {

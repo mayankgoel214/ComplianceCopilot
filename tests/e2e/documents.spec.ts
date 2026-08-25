@@ -23,7 +23,10 @@ test.describe('Document Management Flow', () => {
       }));
 
       // Mock Google Drive API
-      window.gapi = {
+      // A test double, deliberately wider than the Window.gapi declaration in
+      // google-drive-picker.tsx, which names only load(). Cast rather than
+      // widening the app's global for the benefit of a mock.
+      (window as unknown as Record<string, unknown>).gapi = {
         load: (api: string, callback: Function) => {
           if (api === 'picker') callback();
         },
@@ -40,7 +43,7 @@ test.describe('Document Management Flow', () => {
               setOAuthToken: () => this,
               addView: () => this,
               setCallback: (callback: Function) => {
-                this.pickerCallback = callback;
+                (this as any).pickerCallback = callback;
                 return this;
               },
               build: () => ({
@@ -48,7 +51,7 @@ test.describe('Document Management Flow', () => {
                   if (visible) {
                     // Simulate user selecting files after a short delay
                     setTimeout(() => {
-                      this.pickerCallback({
+                      (this as any).pickerCallback({
                         action: 'picked',
                         docs: [
                           {
@@ -181,9 +184,9 @@ test.describe('Document Management Flow', () => {
   test('should handle Google Drive Picker cancellation', async ({ page }) => {
     // Override the picker to simulate cancellation
     await page.addInitScript(() => {
-      if (window.gapi && window.gapi.picker) {
-        const originalPickerBuilder = window.gapi.picker.PickerBuilder;
-        window.gapi.picker.PickerBuilder = function() {
+      if (window.gapi && (window as any).gapi.picker) {
+        const originalPickerBuilder = (window as any).gapi.picker.PickerBuilder;
+        (window as any).gapi.picker.PickerBuilder = function() {
           const builder = originalPickerBuilder.call(this);
           const originalSetCallback = builder.setCallback;
           builder.setCallback = function(callback: Function) {

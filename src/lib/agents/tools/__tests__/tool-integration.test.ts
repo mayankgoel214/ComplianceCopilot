@@ -169,7 +169,7 @@ describe("Tool Integration Tests", () => {
       // Mock service failure
       const mockGetVectorService = jest
         .fn()
-        .mockRejectedValue(new Error("Service unavailable"));
+        .mockRejectedValue(new Error("Service unavailable") as never);
       jest.doMock("../../../vector/chroma-service", () => ({
         getVectorService: mockGetVectorService,
       }));

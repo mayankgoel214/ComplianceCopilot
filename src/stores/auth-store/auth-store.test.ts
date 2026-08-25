@@ -167,7 +167,7 @@ describe('Auth Store', () => {
       const { result } = renderHook(() => useAuthStore())
 
       // Mock onAuthStateChanged to immediately call the callback
-      onAuthStateChanged.mockImplementation((auth, callback) => {
+      onAuthStateChanged.mockImplementation((auth: unknown, callback: (user: unknown) => void) => {
         callback(mockUser as User)
         return jest.fn() // unsubscribe function
       })

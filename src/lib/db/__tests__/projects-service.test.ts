@@ -159,7 +159,7 @@ describe('ProjectsService', () => {
         id: 'test-project-id',
         user_id: 'test-user-id',
         name: 'Test Project',
-        description: null,
+        description: null as unknown as string | undefined,
         status: 'draft',
         created_at: new Date(),
         updated_at: new Date(),

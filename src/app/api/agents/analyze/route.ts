@@ -9,6 +9,7 @@ import {
   ImprovementInput,
 } from "@/lib/agents";
 import { errorLogger } from "@/lib/utils/error-logger";
+import type { ClassificationOutput, GraderOutput } from "@/lib/agents";
 
 // Initialize the agent system on first load
 let systemInitialized = false;
@@ -51,15 +52,72 @@ export async function POST(request: NextRequest) {
     // validation that makes it true. Destructuring straight off
     // Record<string, unknown> instead left every field `unknown` and pushed a
     // cast into each of the dozen places they were used.
+    /**
+     * A prior stage's output as it actually arrives.
+     *
+     * Callers forward either the agent's payload directly or the whole
+     * envelope it came in, and the code below already handles both with
+     * `x.field || x.data?.field`. Naming that shape here is what makes those
+     * accesses type-check without rewriting working logic. Partial, because a
+     * caller running one stage standalone supplies only what that stage needs.
+     */
+    type PriorStage<T> = Partial<T> & { data?: Partial<T> };
+
+    type AnalysisType =
+      | "classification"
+      | "ideation"
+      | "grading"
+      | "improvement"
+      | "full";
+
     interface AnalyzeRequest {
       projectId?: string;
       projectDescription?: string;
       documentContent?: string;
-      analysisType?: string;
-      context?: Record<string, unknown>;
-      classificationData?: unknown;
-      frameworkData?: unknown;
-      gradingData?: unknown;
+      analysisType?: AnalysisType;
+      /**
+       * Caller-supplied project context. Every field is optional and each use
+       * below falls back to a default, which is why these are unions of the
+       * literals the downstream agents accept rather than plain strings — a
+       * typo in a caller's payload should fail here, not inside an agent.
+       */
+      context?: {
+        projectType?: "academic" | "research" | "government" | "commercial";
+        projectSize?: "small" | "medium" | "large";
+        budget?: "limited" | "moderate" | "ample";
+        timeline?: "urgent" | "normal" | "flexible";
+        technicalResources?: "low" | "medium" | "high";
+        legalResources?: "low" | "medium" | "high";
+        administrativeResources?: "low" | "medium" | "high";
+        preferences?: {
+          prioritizeQuickWins: boolean;
+          focusOnCritical: boolean;
+          includeTraining: boolean;
+          includeAutomation: boolean;
+        };
+        implementationDetails?: {
+          existingPolicies: string[];
+          securityMeasures: string[];
+          dataHandlingPractices: string[];
+          accessControls: string[];
+        };
+        userId?: string;
+        sessionId?: string;
+        conversationHistory?: unknown[];
+        sharedState?: Record<string, unknown>;
+        existingPolicies?: string[];
+        securityMeasures?: string[];
+        dataHandlingPractices?: string[];
+        accessControls?: string[];
+      };
+      /**
+       * Outputs from earlier agents, passed back in when a caller runs one
+       * stage standalone. Typed as the agents' own output shapes rather than
+       * `unknown`, since that is exactly what they are.
+       */
+      classificationData?: PriorStage<ClassificationOutput> | null;
+      frameworkData?: PriorStage<ClassificationOutput> | null;
+      gradingData?: PriorStage<GraderOutput> | null;
     }
 
     const {
@@ -69,7 +127,7 @@ export async function POST(request: NextRequest) {
       projectId = "",
       projectDescription = "",
       documentContent = "",
-      analysisType = "full", // 'classification', 'ideation', 'grading', 'improvement', 'full'
+      analysisType = "full" as AnalysisType, // 'classification', 'ideation', 'grading', 'improvement', 'full'
       context = {},
       // Optional inputs for standalone agent testing
       classificationData = null, // For ideation and grader when running standalone
@@ -179,7 +237,16 @@ export async function POST(request: NextRequest) {
       preferences: context.preferences || {},
     };
 
-    const results: Record<string, unknown> = {};
+    // Stages read each other's output back off this, so it carries the shapes
+    // rather than `unknown` — `results.classification` was typed `{}`, which
+    // made every property access on it an error.
+    const results: {
+      classification?: PriorStage<ClassificationOutput>;
+      ideation?: unknown;
+      grading?: PriorStage<GraderOutput>;
+      improvement?: unknown;
+      validation?: unknown;
+    } = {};
 
     try {
       if (analysisType === "classification" || analysisType === "full") {
@@ -200,7 +267,8 @@ export async function POST(request: NextRequest) {
             analysisContext
           );
 
-          results.classification = classificationResult;
+          results.classification =
+            classificationResult as PriorStage<ClassificationOutput>;
         }
       }
 
@@ -214,7 +282,12 @@ export async function POST(request: NextRequest) {
           const classificationSource =
             classificationData || results.classification;
 
-          if (classificationSource || analysisType === "ideation") {
+          // Was `classificationSource || analysisType === "ideation"`, which
+          // made the standalone-ideation branch below unreachable: getting there
+          // required analysisType !== "ideation", the very thing it tested for.
+          // Standalone runs therefore fell in here and proceeded with an empty
+          // framework list instead of the defaults written for them.
+          if (classificationSource) {
             const detectedFrameworks =
               classificationSource?.detectedFrameworks?.map(
                 (f: { name: string }) => f.name
@@ -268,13 +341,22 @@ export async function POST(request: NextRequest) {
         // Step 3: Grading (can use frameworkData, classificationData, or results)
         const graderAgentId = agentTeamIds.find((id) => id.includes("grader"));
         if (graderAgentId) {
-          let frameworks = [];
+          // Annotated because the branches below populate it from three
+          // different sources; without this it infers any[] from the empty
+          // literal and every later use is untyped.
+          let frameworks: Array<{
+            name: string;
+            confidence: number;
+            priority: "low" | "medium" | "high" | "critical";
+          }> = [];
 
           // Use provided frameworkData first, then classificationData, then results
           if (frameworkData) {
-            frameworks = Array.isArray(frameworkData)
-              ? frameworkData
-              : [frameworkData];
+            // Supplied directly by the caller when running the grader
+            // standalone, either as one framework or a list.
+            frameworks = (
+              Array.isArray(frameworkData) ? frameworkData : [frameworkData]
+            ) as typeof frameworks;
           } else if (classificationData) {
             frameworks =
               classificationData.detectedFrameworks?.map(
@@ -285,7 +367,7 @@ export async function POST(request: NextRequest) {
                 }) => ({
                   name: f.name,
                   confidence: f.confidence || 0.8,
-                  priority: f.priority || "medium",
+                  priority: (f.priority as typeof frameworks[number]["priority"]) || "medium",
                 })
               ) ||
               classificationData.data?.detectedFrameworks?.map(
@@ -296,7 +378,7 @@ export async function POST(request: NextRequest) {
                 }) => ({
                   name: f.name,
                   confidence: f.confidence || 0.8,
-                  priority: f.priority || "medium",
+                  priority: (f.priority as typeof frameworks[number]["priority"]) || "medium",
                 })
               ) ||
               [];
@@ -321,7 +403,7 @@ export async function POST(request: NextRequest) {
                 }) => ({
                   name: f.name,
                   confidence: f.confidence || 0.8,
-                  priority: f.priority || "medium",
+                  priority: (f.priority as typeof frameworks[number]["priority"]) || "medium",
                 })
               ) ||
               [];
@@ -343,7 +425,7 @@ export async function POST(request: NextRequest) {
                   type: "other" as const,
                 },
               ],
-              implementationDetails: context.implementationDetails || {},
+              implementationDetails: context.implementationDetails,
             };
 
             const graderResult = await registry.executeAgent(
@@ -352,7 +434,7 @@ export async function POST(request: NextRequest) {
               analysisContext
             );
 
-            results.grading = graderResult;
+            results.grading = graderResult as PriorStage<GraderOutput>;
           }
         }
       }
@@ -363,8 +445,10 @@ export async function POST(request: NextRequest) {
           id.includes("improvement")
         );
         if (improvementAgentId) {
-          let frameworkScores = [];
-          let prioritizedGaps = [];
+          // Annotated for the same reason as `frameworks` above: populated
+          // from several branches, so an empty literal would infer any[].
+          let frameworkScores: NonNullable<GraderOutput["frameworkScores"]> = [];
+          let prioritizedGaps: NonNullable<GraderOutput["prioritizedGaps"]> = [];
 
           // Use provided gradingData first, then results
           if (gradingData) {

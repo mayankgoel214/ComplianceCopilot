@@ -74,10 +74,12 @@ export default function DemoPage() {
         <p className="text-muted-foreground mt-3 text-pretty">
           This runs the real pipeline. A classification agent reads the document
           below and decides which regulatory frameworks apply; a grading agent
-          then scores it against each one and cites the passage it is reacting
-          to. Nothing here is pre-computed — the same run on the same text can
-          come back slightly differently, which is what using a model actually
-          looks like.
+          then scores it against each one and says what in the document it is
+          reacting to. Those notes are the model&rsquo;s own summary of the
+          problem rather than a verbatim quote, so the document is printed in
+          full below to check them against. Nothing here is pre-computed — the
+          same run on the same text can come back slightly differently, which
+          is what using a model actually looks like.
         </p>
       </header>
 

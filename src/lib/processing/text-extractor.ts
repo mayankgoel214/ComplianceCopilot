@@ -1,5 +1,18 @@
 import mammoth from "mammoth";
-import pdf from "pdf-parse";
+// Imported from lib/ rather than the package root on purpose.
+//
+// pdf-parse's index.js ends with `if (!module.parent) { ...readFileSync(
+// './test/data/05-versions-space.pdf') }` — a debug hook the author left in.
+// Once bundled there is no module.parent, so that branch runs on import and
+// throws ENOENT before any route handler executes. It took down every route
+// that transitively reached this file, including the demo, which never parses
+// a PDF at all.
+//
+// A 108-byte stub PDF had been committed at the repo root to satisfy that
+// read. It worked locally, where cwd is the repo root, and not on Vercel,
+// where it is neither deployed nor the cwd. lib/pdf-parse.js is the actual
+// implementation and has no such branch.
+import pdf from "pdf-parse/lib/pdf-parse.js";
 import { Readable } from "stream";
 
 /**

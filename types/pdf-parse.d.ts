@@ -1,6 +1,10 @@
 // pdf-parse ships no type declarations, so importing it was an implicit any.
 // This describes only what text-extractor actually uses.
-declare module "pdf-parse" {
+//
+// Declared for the deep path rather than the package root. The root index.js
+// runs a debug branch on import — see the comment in text-extractor.ts — so
+// nothing here should import "pdf-parse" directly.
+declare module "pdf-parse/lib/pdf-parse.js" {
   interface PDFInfo {
     numpages: number;
     numrender: number;

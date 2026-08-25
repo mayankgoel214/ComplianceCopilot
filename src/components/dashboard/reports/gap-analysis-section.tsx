@@ -38,7 +38,19 @@ export function GapAnalysisSection({
 
   const { filteredGaps, gapStats, priorityGroups } = useMemo(() => {
     if (!gaps || gaps.length === 0) {
-      return { filteredGaps: [], gapStats: {}, priorityGroups: {} };
+      // Same shape as the populated return below. Returning bare {} here made
+      // TypeScript union the two, so every field read afterwards had to be
+      // narrowed at its use site.
+      return {
+        filteredGaps: [] as ComplianceGap[],
+        gapStats: {} as Record<string, number>,
+        priorityGroups: {
+          quickWins: [] as ComplianceGap[],
+          majorProjects: [] as ComplianceGap[],
+          fillIns: [] as ComplianceGap[],
+          questionable: [] as ComplianceGap[],
+        },
+      };
     }
 
     // Filter gaps

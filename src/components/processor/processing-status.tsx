@@ -148,8 +148,27 @@ export function ProcessingStatus({
     });
 
     eventSource.addEventListener("error", (event) => {
+      // Two different things arrive here under the same name. The server sends
+      // a named "error" event carrying a payload, and EventSource itself fires
+      // a built-in "error" on connection failure — which by specification is a
+      // plain Event with no data at all.
+      //
+      // This handler previously called JSON.parse(event.data) unconditionally.
+      // On a dropped connection that parsed undefined, threw, and was swallowed
+      // by the catch below, so the user was never told the stream had died.
+      const message = event as MessageEvent<string | undefined>;
+
+      if (typeof message.data !== "string") {
+        setError(
+          eventSource.readyState === EventSource.CLOSED
+            ? "Connection to the processing stream was closed."
+            : "Lost connection to the processing stream. Retrying…"
+        );
+        return;
+      }
+
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(message.data);
         if (data.error) {
           setError(data.error);
         }
@@ -346,25 +365,25 @@ export function ProcessingStatus({
                 {connectionStatus === "connected" && (
                   <Wifi
                     className="h-4 w-4 text-green-600"
-                    title="Real-time connection active"
+                    aria-label="Real-time connection active"
                   />
                 )}
                 {connectionStatus === "connecting" && (
                   <Loader2
                     className="h-4 w-4 animate-spin text-yellow-600"
-                    title="Connecting..."
+                    aria-label="Connecting..."
                   />
                 )}
                 {connectionStatus === "error" && (
                   <WifiOff
                     className="h-4 w-4 text-red-600"
-                    title="Connection failed, using fallback"
+                    aria-label="Connection failed, using fallback"
                   />
                 )}
                 {connectionStatus === "disconnected" && (
                   <WifiOff
                     className="h-4 w-4 text-gray-400"
-                    title="Disconnected"
+                    aria-label="Disconnected"
                   />
                 )}
               </div>
@@ -523,10 +542,8 @@ export function ProcessingStatus({
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge
-                      variant={getStatusBadgeVariant(job.status)}
-                      size="sm"
-                    >
+                    {/* Badge has no size variant; it is already text-xs. */}
+                    <Badge variant={getStatusBadgeVariant(job.status)}>
                       {job.status}
                     </Badge>
                     {job.timing.duration_seconds && (

@@ -124,6 +124,16 @@ npm run eval                      # regenerate docs/retrieval-eval.md and eval/r
 `npm run index:build` takes `--target-tokens` and `--overlap-tokens`, so a
 chunking experiment is a rerun rather than an edit. Embeddings are cached by
 content hash, so only the chunks whose text actually moved are re-embedded.
+`npm run eval:chunking` does the whole sweep and writes
+[`docs/chunking-experiment.md`](docs/chunking-experiment.md).
+
+That experiment's result is a null one, which is why it is worth reading: across
+a fourfold range of chunk sizes, dense nDCG@10 moves between 0.662 and 0.685 — a
+spread smaller than a 32-query slice can resolve. Larger chunks put the answer at
+rank 1 more often, smaller ones cover more by rank 10, and the shipped
+configuration is deliberately left alone rather than tuned to a held-out number.
+Chunk size is a knob that gets turned by reflex in RAG systems; on this corpus it
+is not where the quality is. Reranking is.
 
 ## Design notes
 

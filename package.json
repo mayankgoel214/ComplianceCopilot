@@ -14,7 +14,8 @@
     "test:db": "docker compose -f docker-compose.test.yml up -d && VERITY_TEST_DATABASE_URL=postgres://postgres:verity@localhost:55432/verity_test jest --testEnvironment=node pgvector",
     "corpus:fetch": "node scripts/fetch-corpus.mjs",
     "index:build": "tsx --env-file=.env.local scripts/build-index.mts",
-    "eval": "tsx --env-file=.env.local eval/run-eval.mts"
+    "eval": "tsx --env-file=.env.local eval/run-eval.mts",
+    "eval:chunking": "tsx --env-file=.env.local scripts/chunking-experiment.mts"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

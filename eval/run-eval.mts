@@ -131,6 +131,7 @@ function metricsFor(outcomes: Outcome[]): Metrics {
 async function main() {
   const dataDir = stringArg("data", "data");
   const outFile = stringArg("out", "docs/retrieval-eval.md");
+  const resultsFile = stringArg("results", "eval/results.json");
   const label = stringArg("label", "");
   const withRerank = !process.argv.includes("--no-rerank");
 
@@ -296,8 +297,9 @@ async function main() {
 
   await mkdir(path.dirname(outFile), { recursive: true });
   await writeFile(outFile, renderReport(store, queries, results, sweep, chosen.lexical, withRerank, label), "utf8");
+  await mkdir(path.dirname(resultsFile), { recursive: true });
   await writeFile(
-    "eval/results.json",
+    resultsFile,
     JSON.stringify(
       {
         index: store.meta,
@@ -326,7 +328,7 @@ async function main() {
     ),
     "utf8"
   );
-  console.log(`\nWrote ${outFile} and eval/results.json`);
+  console.log(`\nWrote ${outFile} and ${resultsFile}`);
 }
 
 function renderReport(

@@ -1,0 +1,21 @@
+# Vercel's CLI does not read .gitignore, so local build artifacts have to be
+# named again here or they are uploaded with every deploy. Without this the
+# chunking experiment's four index rebuilds and the demo video's frames went up
+# on each push — 60 MB of payload for a site that needs 6.
+
+.git
+node_modules
+.next
+coverage
+test-results
+playwright-report
+
+# Experiment output and fetch caches. The shipped index in data/ is NOT ignored:
+# the application reads it at runtime.
+data-experiments
+.demo-frames
+.corpus-cache
+.embedding-cache
+
+# The walkthrough video belongs in the repository, not in the deployment.
+docs/verity-demo.mp4

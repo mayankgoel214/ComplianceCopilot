@@ -1,7 +1,10 @@
-import { generateStructured, structuredOutputStats } from "../ai/gemini-client";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import type { Document } from "@langchain/core/documents";
+
+import { createChatModel, TraceCallbackHandler } from "../ai/langchain-model";
 import { getGeminiEmbeddingService } from "../ai/gemini-embeddings";
 import { getRetrievalStore } from "../retrieval/store";
-import type { Chunk, ScoredChunk } from "../retrieval/types";
+import { VerityRetriever, formatPassages } from "../retrieval/langchain-retriever";
 import { verifyQuote, type GroundingVerdict } from "../grounding/verify";
 import { Trace, type TraceSummary } from "../telemetry/trace";
 import { AI_CONFIG } from "../ai/config";
@@ -18,13 +21,19 @@ import {
  *
  *   classify -> decompose into probes -> retrieve -> assess -> verify -> score
  *
+ * Composed with LCEL, and exposed as an async generator rather than a single
+ * awaited call. A run takes around twenty-five seconds; behind one promise that
+ * is twenty-five seconds of blank page, and the stages are genuinely
+ * interesting — a visitor watching "retrieving GDPR" and then "verifying GDPR"
+ * learns what the tool does in a way no spinner conveys.
+ *
  * The stage worth explaining is the last but one. The model is required to
- * quote the document and the regulation it is relying on, and both quotes are
+ * quote the document and the regulation it relies on, and both quotes are
  * checked against their sources before the finding is returned. A finding whose
- * regulation quote cannot be found in any passage the model was shown is
- * marked unsupported and excluded from the score. That is the difference
- * between a tool that produces compliance findings and one that produces
- * confident sentences shaped like compliance findings.
+ * regulation quote cannot be found in any passage the model was shown is marked
+ * unsupported and excluded from the score. That is the difference between a
+ * tool that produces compliance findings and one that produces confident
+ * sentences shaped like compliance findings.
  */
 
 export const MAX_DOCUMENT_CHARS = 24000;
@@ -36,7 +45,6 @@ export interface AssessedFinding extends Finding {
     regulation: { verdict: GroundingVerdict; similarity: number };
     document: { verdict: GroundingVerdict; similarity: number } | null;
   };
-  /** False when the regulation quote could not be found in the retrieved passages. */
   supported: boolean;
 }
 
@@ -46,9 +54,14 @@ export interface FrameworkAssessment {
   rationale: string;
   concerns: string[];
   hasCorpus: boolean;
-  /** Null when the framework has no corpus, so no score is invented for it. */
   score: number | null;
-  passages: Array<{ citation: string; heading: string; sourceUrl: string; rank: number; text: string }>;
+  passages: Array<{
+    citation: string;
+    heading: string;
+    sourceUrl: string;
+    rank: number;
+    text: string;
+  }>;
   findings: AssessedFinding[];
 }
 
@@ -62,22 +75,16 @@ export interface AssessmentResult {
     groundedRate: number;
   };
   index: { chunkCount: number; sectionCount: number; embeddingModel: string; dimensions: number };
-  /**
-   * How often the model's JSON satisfied its schema first time.
-   *
-   * Cumulative for the lifetime of this server instance, not for this request —
-   * a single assessment makes too few structured calls for a rate to mean
-   * anything. It is reported because "the model returns structured output" is a
-   * claim, and this is the number that makes it checkable.
-   */
-  schemaValidation: {
-    attempts: number;
-    firstPassValid: number;
-    repaired: number;
-    failed: number;
-  };
   trace: TraceSummary;
 }
+
+/** What the client is told as the run proceeds. */
+export type AssessEvent =
+  | { type: "stage"; stage: string; label: string; status: "start" | "done" }
+  | { type: "classified"; documentSummary: string; frameworks: string[] }
+  | { type: "framework"; assessment: FrameworkAssessment }
+  | { type: "done"; result: AssessmentResult }
+  | { type: "error"; message: string };
 
 const CLASSIFY_SYSTEM = [
   "You identify which regulatory frameworks apply to a document describing a research or academic system.",
@@ -138,10 +145,26 @@ function scoreFrom(findings: AssessedFinding[]): number {
   return Math.max(0, Math.round(100 - penalty));
 }
 
-export async function assessDocument(
+/**
+ * Yields settled promises in completion order.
+ *
+ * The frameworks are independent and run concurrently; this is what lets each
+ * reach the page the moment it is finished rather than when the slowest of them
+ * is.
+ */
+async function* asCompleted<T>(promises: Promise<T>[]): AsyncGenerator<T> {
+  const pending = new Map(promises.map((p, i) => [i, p.then((value) => ({ i, value }))]));
+  while (pending.size > 0) {
+    const { i, value } = await Promise.race(pending.values());
+    pending.delete(i);
+    yield value;
+  }
+}
+
+export async function* assessDocumentStream(
   documentText: string,
   projectDescription: string
-): Promise<AssessmentResult> {
+): AsyncGenerator<AssessEvent> {
   const trace = new Trace();
   const document = documentText.slice(0, MAX_DOCUMENT_CHARS);
 
@@ -152,50 +175,67 @@ export async function assessDocument(
     trace.record("embed:query", "embed", async () => ({
       value: await embeddings.generateQueryEmbedding(query),
       model: AI_CONFIG.embeddings.model,
-      // The embeddings endpoint does not return usage metadata, so this is
-      // recorded as unknown rather than estimated from the text length.
+      // The embeddings endpoint returns no usage metadata, so this is recorded
+      // as unknown rather than estimated from the text length.
       inputTokens: null,
       outputTokens: null,
     }));
 
-  // ---- 1. Classify -------------------------------------------------------
-  const classification = await generateStructured(
-    [
-      projectDescription ? `Project description:\n${projectDescription}\n` : "",
-      "Document:",
-      document,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    ClassificationSchema,
-    { system: CLASSIFY_SYSTEM, trace, label: "classify", maxOutputTokens: 8192 }
+  const index = {
+    chunkCount: store.meta.chunkCount,
+    sectionCount: store.meta.sectionCount,
+    embeddingModel: store.meta.embeddingModel,
+    dimensions: store.meta.dimensions,
+  };
+
+  // ---- 1. Classify ------------------------------------------------------
+  yield { type: "stage", stage: "classify", label: "Reading the document", status: "start" };
+
+  const classifyChain = ChatPromptTemplate.fromMessages([
+    ["system", CLASSIFY_SYSTEM],
+    ["human", "{input}"],
+  ]).pipe(createChatModel({ maxOutputTokens: 8192 }).withStructuredOutput(ClassificationSchema));
+
+  const classification = await classifyChain.invoke(
+    {
+      input: [
+        projectDescription ? `Project description:\n${projectDescription}\n` : "",
+        "Document:",
+        document,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+    { callbacks: [new TraceCallbackHandler(trace, "classify")] }
   );
 
+  yield { type: "stage", stage: "classify", label: "Reading the document", status: "done" };
+  yield {
+    type: "classified",
+    documentSummary: classification.documentSummary,
+    frameworks: classification.frameworks.map((f) => f.name),
+  };
+
   if (classification.frameworks.length === 0) {
-    // Reported as a result, not an error: a document that triggers nothing is a
-    // legitimate outcome. What must not happen is inventing a framework to fill
-    // the page.
-    return {
-      documentSummary: classification.documentSummary,
-      frameworks: [],
-      grounding: { totalFindings: 0, supported: 0, unsupported: 0, groundedRate: 1 },
-      index: {
-        chunkCount: store.meta.chunkCount,
-        sectionCount: store.meta.sectionCount,
-        embeddingModel: store.meta.embeddingModel,
-        dimensions: store.meta.dimensions,
+    // A document that triggers nothing is a legitimate outcome. What must not
+    // happen is inventing a framework to fill the page.
+    yield {
+      type: "done",
+      result: {
+        documentSummary: classification.documentSummary,
+        frameworks: [],
+        grounding: { totalFindings: 0, supported: 0, unsupported: 0, groundedRate: 1 },
+        index,
+        trace: trace.summary(),
       },
-      schemaValidation: { ...structuredOutputStats },
-      trace: trace.summary(),
     };
+    return;
   }
 
-  // Frameworks are independent of one another, so they are assessed
-  // concurrently. Run in sequence this took about a minute for four frameworks,
-  // which is past the point where a visitor assumes the page is broken — and
-  // past the request ceiling on the platform it deploys to.
-  const assessments = await Promise.all(
-    classification.frameworks.map(async (detected): Promise<FrameworkAssessment> => {
+  // ---- 2-5. Per framework, concurrently ---------------------------------
+  const assessOne = async (
+    detected: (typeof classification.frameworks)[number]
+  ): Promise<FrameworkAssessment> => {
     const hasCorpus = (FRAMEWORKS_WITH_CORPUS as readonly string[]).includes(detected.name);
 
     if (!hasCorpus) {
@@ -213,24 +253,17 @@ export async function assessDocument(
       };
     }
 
-    // ---- 2 & 3. Decompose into probes, retrieve for each -----------------
-    const retrieved = new Map<string, ScoredChunk>();
+    const retriever = new VerityRetriever({
+      embedQuery,
+      mode: "dense",
+      topK: PASSAGES_PER_CONCERN,
+      framework: detected.name,
+    });
+
     const t0 = Date.now();
     const perConcern = await Promise.all(
-      detected.concerns.map((concern) =>
-        store.search(concern, embedQuery, {
-          mode: "dense",
-          topK: PASSAGES_PER_CONCERN,
-          framework: detected.name,
-        })
-      )
+      detected.concerns.map((concern) => retriever.invoke(concern))
     );
-    for (const result of perConcern) {
-      for (const hit of result.results) {
-        const existing = retrieved.get(hit.chunk.id);
-        if (!existing || hit.rank < existing.rank) retrieved.set(hit.chunk.id, hit);
-      }
-    }
     trace.add({
       name: `retrieve:${detected.name}`,
       kind: "retrieve",
@@ -240,8 +273,18 @@ export async function assessDocument(
       cached: false,
     });
 
-    const passages = [...retrieved.values()]
-      .sort((a, b) => a.rank - b.rank)
+    // Deduplicated across concerns, keeping each passage's best rank.
+    const byId = new Map<string, Document>();
+    for (const docs of perConcern) {
+      for (const doc of docs) {
+        const existing = byId.get(doc.metadata.id);
+        if (!existing || doc.metadata.rank < existing.metadata.rank) {
+          byId.set(doc.metadata.id, doc);
+        }
+      }
+    }
+    const passages = [...byId.values()]
+      .sort((a, b) => a.metadata.rank - b.metadata.rank)
       .slice(0, MAX_PASSAGES_PER_FRAMEWORK);
 
     if (passages.length === 0) {
@@ -257,38 +300,29 @@ export async function assessDocument(
       };
     }
 
-    // ---- 4. Assess against the retrieved passages ------------------------
-    const passageBlock = passages
-      .map((p, i) => `[${i + 1}] ${p.chunk.citation} — ${p.chunk.heading}\n${p.chunk.text}`)
-      .join("\n\n");
-
-    const assessment = await generateStructured(
+    const assessChain = ChatPromptTemplate.fromMessages([
+      ["system", ASSESS_SYSTEM],
       [
-        `Framework: ${detected.name}`,
-        "",
-        "Regulation passages:",
-        passageBlock,
-        "",
-        "Submitted document:",
-        document,
-      ].join("\n"),
-      AssessmentSchema,
-      {
-        system: ASSESS_SYSTEM,
-        trace,
-        label: `assess:${detected.name}`,
-        maxOutputTokens: 16384,
-      }
+        "human",
+        "Framework: {framework}\n\nRegulation passages:\n{passages}\n\nSubmitted document:\n{document}",
+      ],
+    ]).pipe(createChatModel({ maxOutputTokens: 16384 }).withStructuredOutput(AssessmentSchema));
+
+    const assessment = await assessChain.invoke(
+      { framework: detected.name, passages: formatPassages(passages), document },
+      { callbacks: [new TraceCallbackHandler(trace, `assess:${detected.name}`)] }
     );
 
-    // ---- 5. Verify every quote against its source ------------------------
+    // ---- Verify every quote against its source --------------------------
     const t1 = Date.now();
-    const passageTexts = passages.map((p) => `${p.chunk.heading}\n${p.chunk.text}`);
+    const passageTexts = passages.map((p) => `${p.metadata.heading}\n${p.pageContent}`);
 
     const findings: AssessedFinding[] = assessment.findings.map((finding) => {
       const regulation = verifyQuote(finding.regulationQuote, passageTexts);
       const documentGrounding =
-        finding.documentQuote.trim().length > 0 ? verifyQuote(finding.documentQuote, [document]) : null;
+        finding.documentQuote.trim().length > 0
+          ? verifyQuote(finding.documentQuote, [document])
+          : null;
 
       return {
         ...finding,
@@ -298,9 +332,8 @@ export async function assessDocument(
             ? { verdict: documentGrounding.verdict, similarity: documentGrounding.similarity }
             : null,
         },
-        // A finding stands on its regulation quote. A missing or unverifiable
-        // document quote is expected when the finding is about an absence, so
-        // it does not by itself disqualify the finding.
+        // A finding stands on its regulation quote. A missing document quote is
+        // expected when the finding is about an absence.
         supported: regulation.verdict !== "unsupported",
       };
     });
@@ -322,38 +355,69 @@ export async function assessDocument(
       hasCorpus: true,
       score: scoreFrom(findings),
       passages: passages.map((p) => ({
-        citation: p.chunk.citation,
-        heading: p.chunk.heading,
-        sourceUrl: p.chunk.sourceUrl,
-        rank: p.rank,
-        text: p.chunk.text,
+        citation: p.metadata.citation,
+        heading: p.metadata.heading,
+        sourceUrl: p.metadata.sourceUrl,
+        rank: p.metadata.rank,
+        text: p.pageContent,
       })),
       findings,
     };
-    })
-  );
+  };
+
+  for (const framework of classification.frameworks) {
+    yield {
+      type: "stage",
+      stage: framework.name,
+      label: `Retrieving and assessing ${framework.name}`,
+      status: "start",
+    };
+  }
+
+  const assessments: FrameworkAssessment[] = [];
+  for await (const assessment of asCompleted(classification.frameworks.map(assessOne))) {
+    assessments.push(assessment);
+    yield {
+      type: "stage",
+      stage: assessment.framework,
+      label: `Retrieving and assessing ${assessment.framework}`,
+      status: "done",
+    };
+    yield { type: "framework", assessment };
+  }
+
+  // Completion order is not a useful order to read in, so the final result is
+  // put back into the order the classifier ranked them.
+  const order = new Map(classification.frameworks.map((f, i) => [f.name, i]));
+  assessments.sort((a, b) => (order.get(a.framework) ?? 0) - (order.get(b.framework) ?? 0));
 
   const allFindings = assessments.flatMap((a) => a.findings);
   const supported = allFindings.filter((f) => f.supported).length;
 
-  return {
-    documentSummary: classification.documentSummary,
-    frameworks: assessments,
-    grounding: {
-      totalFindings: allFindings.length,
-      supported,
-      unsupported: allFindings.length - supported,
-      groundedRate: allFindings.length === 0 ? 1 : supported / allFindings.length,
+  yield {
+    type: "done",
+    result: {
+      documentSummary: classification.documentSummary,
+      frameworks: assessments,
+      grounding: {
+        totalFindings: allFindings.length,
+        supported,
+        unsupported: allFindings.length - supported,
+        groundedRate: allFindings.length === 0 ? 1 : supported / allFindings.length,
+      },
+      index,
+      trace: trace.summary(),
     },
-    index: {
-      chunkCount: store.meta.chunkCount,
-      sectionCount: store.meta.sectionCount,
-      embeddingModel: store.meta.embeddingModel,
-      dimensions: store.meta.dimensions,
-    },
-    schemaValidation: { ...structuredOutputStats },
-    trace: trace.summary(),
   };
 }
 
-export type { Chunk };
+/** Non-streaming wrapper, for tests and any caller that is not a browser. */
+export async function assessDocument(
+  documentText: string,
+  projectDescription: string
+): Promise<AssessmentResult> {
+  for await (const event of assessDocumentStream(documentText, projectDescription)) {
+    if (event.type === "done") return event.result;
+  }
+  throw new Error("The pipeline finished without producing a result.");
+}

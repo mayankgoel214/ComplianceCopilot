@@ -57,12 +57,28 @@ interface Span {
   outputTokens: number | null;
 }
 
+type StageStatus = "start" | "done";
+
+interface StageEvent {
+  type: "stage";
+  stage: string;
+  label: string;
+  status: StageStatus;
+}
+
+type StreamEvent =
+  | StageEvent
+  | { type: "meta"; usedSample: boolean; runsRemainingThisHour: number }
+  | { type: "classified"; documentSummary: string; frameworks: string[] }
+  | { type: "framework"; assessment: FrameworkAssessment }
+  | { type: "done"; result: AssessResponse }
+  | { type: "error"; message: string };
+
 interface AssessResponse {
   documentSummary: string;
   frameworks: FrameworkAssessment[];
   grounding: { totalFindings: number; supported: number; unsupported: number; groundedRate: number };
   index: { chunkCount: number; sectionCount: number; embeddingModel: string; dimensions: number };
-  schemaValidation: { attempts: number; firstPassValid: number; repaired: number; failed: number };
   trace: {
     totalMs: number;
     spans: Span[];
@@ -79,28 +95,18 @@ interface AssessResponse {
   error?: string;
 }
 
-const SEVERITY_STYLE: Record<Finding["severity"], string> = {
-  critical: "border-[color-mix(in_srgb,var(--unsupported)_40%,transparent)] text-unsupported",
-  high: "border-[color-mix(in_srgb,var(--near)_40%,transparent)] text-near",
-  medium: "border-[color-mix(in_srgb,var(--near)_40%,transparent)] text-near",
-  low: "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-accent",
+/**
+ * Severity maps onto the verdict palette rather than introducing a fourth set
+ * of colours: critical and high read as unsupported-red, medium as near-amber,
+ * low as neutral. A page has room for one colour language, and this one already
+ * means something here.
+ */
+const SEVERITY_TONE: Record<Finding["severity"], "unsupported" | "near" | "neutral"> = {
+  critical: "unsupported",
+  high: "unsupported",
+  medium: "near",
+  low: "neutral",
 };
-
-const VERDICT_STYLE: Record<Grounding["verdict"], string> = {
-  exact: "border-[color-mix(in_srgb,var(--verified)_35%,transparent)] text-verified",
-  near: "border-[color-mix(in_srgb,var(--near)_40%,transparent)] text-near",
-  unsupported: "border-[color-mix(in_srgb,var(--unsupported)_40%,transparent)] text-unsupported",
-};
-
-function Pill({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
 
 export default function AssessClient({ sampleDocument, sampleDescription }: AssessClientProps) {
   const [document, setDocument] = useState("");
@@ -109,6 +115,9 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
   const [data, setData] = useState<AssessResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showTrace, setShowTrace] = useState(false);
+  const [stages, setStages] = useState<StageEvent[]>([]);
+  const [partial, setPartial] = useState<FrameworkAssessment[]>([]);
+  const [summary, setSummary] = useState<string | null>(null);
 
   function loadSample() {
     setDocument(sampleDocument);
@@ -121,22 +130,79 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
     setLoading(true);
     setError(null);
     setData(null);
+    setStages([]);
+    setPartial([]);
+    setSummary(null);
+
     try {
       const response = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(useSample ? { useSample: true } : { document }),
       });
-      const body = (await response.json()) as AssessResponse;
-      if (!response.ok) {
-        setError(body.error ?? `Request failed with ${response.status}.`);
+
+      // A refusal — bad input, or the rate limit — arrives as ordinary JSON
+      // before the stream opens.
+      if (!response.ok || !response.body) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        setError(body?.error ?? `Request failed with ${response.status}.`);
         return;
       }
-      setData(body);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      // NDJSON: one event per line. A chunk can split a line anywhere, so the
+      // tail is carried over rather than parsed.
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let event: StreamEvent;
+          try {
+            event = JSON.parse(line) as StreamEvent;
+          } catch {
+            continue;
+          }
+          apply(event);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "The request failed.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  function apply(event: StreamEvent) {
+    switch (event.type) {
+      case "stage":
+        setStages((prev) => {
+          const next = prev.filter((s) => s.stage !== event.stage);
+          return [...next, event].sort((a, b) => a.stage.localeCompare(b.stage));
+        });
+        break;
+      case "classified":
+        setSummary(event.documentSummary);
+        break;
+      case "framework":
+        setPartial((prev) => [...prev, event.assessment]);
+        break;
+      case "done":
+        setData(event.result);
+        break;
+      case "error":
+        setError(event.message);
+        break;
+      default:
+        break;
     }
   }
 
@@ -185,17 +251,61 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
         ) : null}
       </div>
 
-      {loading ? (
-        <Card className="px-5 py-5 space-y-4">
-          <p className="text-sm text-fg-muted">
-            Classifying, retrieving regulation text, assessing, then verifying every quote against
-            its source. This is a real pipeline, so it takes real time.
-          </p>
-          <div className="space-y-2.5">
-            <Skeleton className="h-3 w-2/3" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-4/5" />
-          </div>
+      {/*
+        Live progress, not a spinner. The pipeline streams a start and a done
+        event per stage, so this is the actual state of the run rather than an
+        animation standing in for one — and the stages are the interesting part
+        of what the tool does.
+      */}
+      {loading || (stages.length > 0 && !data) ? (
+        <Card className="px-5 py-5 space-y-4" role="status" aria-live="polite">
+          <ol className="space-y-2.5">
+            {stages.map((stage) => {
+              const done = stage.status === "done";
+              return (
+                <li key={stage.stage} className="flex items-center gap-3 text-sm">
+                  <span
+                    className={`h-4 w-4 shrink-0 rounded-full grid place-items-center border ${
+                      done
+                        ? "border-verified bg-[var(--verified-soft)]"
+                        : "border-accent animate-pulse-soft"
+                    }`}
+                    aria-hidden
+                  >
+                    {done ? (
+                      <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none">
+                        <path
+                          d="M5 12.5l4.5 4.5L19 7.5"
+                          stroke="var(--verified)"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : null}
+                  </span>
+                  <span className={done ? "text-fg-muted" : "text-fg"}>{stage.label}</span>
+                </li>
+              );
+            })}
+          </ol>
+
+          {summary ? (
+            <p className="text-[13px] text-fg-muted leading-relaxed border-t border-line pt-4">
+              {summary}
+            </p>
+          ) : (
+            <div className="space-y-2.5 border-t border-line pt-4">
+              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          )}
+
+          {partial.length > 0 ? (
+            <p className="text-[12px] text-fg-faint">
+              {partial.length} of {stages.length - 1} frameworks assessed
+            </p>
+          ) : null}
         </Card>
       ) : null}
 
@@ -226,16 +336,6 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
               </span>
               <span>{data.runsRemainingThisHour} runs left this hour</span>
             </div>
-            {data.schemaValidation.attempts > 0 ? (
-              <p className="text-xs text-fg-muted">
-                Structured output: {data.schemaValidation.firstPassValid} of{" "}
-                {data.schemaValidation.attempts} model calls satisfied their schema first time,
-                {" "}
-                {data.schemaValidation.repaired} needed one repair,{" "}
-                {data.schemaValidation.failed} failed outright. Counted across this server
-                instance, not this run.
-              </p>
-            ) : null}
             <button
               onClick={() => setShowTrace(!showTrace)}
               className="text-xs underline underline-offset-4 text-fg-muted hover:text-fg"
@@ -343,11 +443,11 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
                   }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <Pill className={SEVERITY_STYLE[finding.severity]}>{finding.severity}</Pill>
-                    <Pill className="border-line text-fg-muted">{finding.status}</Pill>
-                    <Pill className={VERDICT_STYLE[finding.grounding.regulation.verdict]}>
+                    <Badge tone={SEVERITY_TONE[finding.severity]}>{finding.severity}</Badge>
+                    <Badge>{finding.status}</Badge>
+                    <Badge tone={finding.grounding.regulation.verdict}>
                       citation {finding.grounding.regulation.verdict}
-                    </Pill>
+                    </Badge>
                     <span className="text-xs text-fg-muted ml-auto">{finding.citation}</span>
                   </div>
 

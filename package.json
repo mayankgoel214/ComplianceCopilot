@@ -18,7 +18,10 @@
     "eval:chunking": "tsx --env-file=.env.local scripts/chunking-experiment.mts"
   },
   "dependencies": {
+    "@langchain/core": "^1.2.9",
+    "@langchain/google-genai": "^2.3.0",
     "clsx": "^2.1.1",
+    "langchain": "^1.5.10",
     "lucide-react": "^0.544.0",
     "next": "^15.5.23",
     "react": "19.1.0",

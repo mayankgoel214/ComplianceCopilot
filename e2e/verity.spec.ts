@@ -165,6 +165,24 @@ test.describe("assessment", () => {
     await expect(page.getByRole("button", { name: /assess this document/i })).toBeEnabled();
   });
 
+  test("streams its stages while the run is in progress", async ({ page }) => {
+    test.skip(!MODEL_AVAILABLE, SKIP_REASON);
+    test.setTimeout(180_000);
+    await page.goto("/assess");
+    await page.getByRole("button", { name: /load the sample document/i }).click();
+    await page.getByRole("button", { name: /assess this document/i }).click();
+
+    // The first stage has to appear long before the run finishes, which is the
+    // whole point of streaming it.
+    await expect(page.getByRole("status")).toContainText(/reading the document/i, {
+      timeout: 30_000,
+    });
+    // Then the classifier's frameworks turn into their own stages.
+    await expect(page.getByRole("status")).toContainText(/retrieving and assessing/i, {
+      timeout: 90_000,
+    });
+  });
+
   test("runs the sample end to end and grounds every citation it reports", async ({ page }) => {
     test.skip(!MODEL_AVAILABLE, SKIP_REASON);
     test.setTimeout(180_000);

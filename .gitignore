@@ -21,3 +21,4 @@ data-experiments/
 test-results/
 playwright-report/
 coverage/
+tsconfig.tsbuildinfo

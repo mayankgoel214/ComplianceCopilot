@@ -3,11 +3,26 @@ import { test, expect } from "@playwright/test";
 /**
  * End-to-end checks against a running Verity.
  *
- * Split deliberately: everything here runs without a model key except the
- * assessment journey, which is skipped when one is absent rather than failing
- * and being ignored. A suite that is red for a known reason gets read as noise
- * and stops catching anything.
+ * Split by whether a test needs a model. Everything structural — navigation,
+ * the evaluation tables, input validation, 404s, mobile layout — runs anywhere.
+ * The tests that embed a query or run an assessment need a key, and they are
+ * skipped with a stated reason when there is none rather than failing.
+ *
+ * That distinction matters because this suite runs in CI on a public
+ * repository. A suite that is permanently red for a known and documented reason
+ * stops being read, and then stops catching the failures it exists for. A
+ * skipped test that says why it skipped is honest; a red one nobody looks at is
+ * not.
+ *
+ * A key is assumed present when either the local environment has one — the dev
+ * server Playwright starts inherits it — or the suite is aimed at a deployment
+ * with `E2E_BASE_URL`, where the key lives on the server rather than here.
  */
+const MODEL_AVAILABLE =
+  Boolean(process.env.GOOGLE_GEMINI_API_KEY) || Boolean(process.env.E2E_BASE_URL);
+
+const SKIP_REASON =
+  "needs a model: set GOOGLE_GEMINI_API_KEY, or point E2E_BASE_URL at a deployment that has one";
 
 test.describe("navigation and static pages", () => {
   test("the overview renders real index numbers, not placeholders", async ({ page }) => {
@@ -40,7 +55,10 @@ test.describe("navigation and static pages", () => {
   test("health reports the index and the key honestly", async ({ request }) => {
     const response = await request.get("/api/health");
     const body = await response.json();
+    // The index must always load. Whether a key is configured is what varies,
+    // and the endpoint reports it either way rather than pretending.
     expect(body.checks.index.ok).toBe(true);
+    expect(typeof body.checks.model.ok).toBe("boolean");
     expect(body.checks.index.detail).toMatch(/chunks from \d+ sections/);
     // The key itself must never appear in a response body.
     expect(JSON.stringify(body)).not.toMatch(/AIza/);
@@ -48,6 +66,11 @@ test.describe("navigation and static pages", () => {
 });
 
 test.describe("retrieval playground", () => {
+  // Only the arms that embed a query need the model; the two validation tests
+  // below are outside this block and always run.
+  test.describe("ranked results", () => {
+    test.skip(!MODEL_AVAILABLE, SKIP_REASON);
+
   test("keeps the previous results on screen while a new search runs", async ({ page }) => {
     await page.goto("/search");
     await page.getByLabel("Search query").fill("breach notification deadline");
@@ -89,6 +112,8 @@ test.describe("retrieval playground", () => {
     await expect(page.getByRole("link", { name: /read the source/i }).first()).toBeVisible();
   });
 
+  });
+
   test("refuses a query that is too short, without calling the model", async ({ request }) => {
     const response = await request.post("/api/search", { data: { query: "a" } });
     expect(response.status()).toBe(400);
@@ -101,6 +126,7 @@ test.describe("retrieval playground", () => {
   });
 
   test("the framework filter restricts what comes back", async ({ request }) => {
+    test.skip(!MODEL_AVAILABLE, SKIP_REASON);
     const response = await request.post("/api/search", {
       data: { query: "consent requirements", framework: "GDPR", topK: 5 },
     });
@@ -140,6 +166,7 @@ test.describe("assessment", () => {
   });
 
   test("runs the sample end to end and grounds every citation it reports", async ({ page }) => {
+    test.skip(!MODEL_AVAILABLE, SKIP_REASON);
     test.setTimeout(180_000);
     await page.goto("/assess");
     await page.getByRole("button", { name: /load the sample document/i }).click();

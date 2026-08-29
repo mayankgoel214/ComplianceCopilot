@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- A tick inside a quotation mark: the product is a citation that has been
+       checked. Drawn heavy and with very little detail, because it is rendered
+       at 16px in a browser tab far more often than at any size where nuance
+       would survive. -->
+  <rect width="32" height="32" rx="7" fill="#0B1120"/>
+  <path d="M8.5 9.5h5.2l-1.7 5.4H8.5zM16.4 9.5h5.2l-1.7 5.4h-3.5z" fill="#38BDF8" opacity="0.55"/>
+  <path d="M8 20.2l5.2 5.1L24.6 14" fill="none" stroke="#38BDF8" stroke-width="3.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

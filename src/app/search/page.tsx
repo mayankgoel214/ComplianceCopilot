@@ -218,7 +218,17 @@ export default function SearchPage() {
             <p className="text-sm text-amber-500 mt-2">{data.rerankRefused}</p>
           ) : null}
 
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 items-start mt-4">
+          {/*
+            The column count follows the number of arms. A fixed three-column
+            grid stranded the reranked arm alone on a second row whenever it was
+            switched on, which read as a rendering fault rather than as a fourth
+            result.
+          */}
+          <div
+            className={`grid gap-4 items-start mt-4 sm:grid-cols-2 ${
+              data.arms.length >= 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"
+            }`}
+          >
             {data.arms.map((arm) => (
               <section
                 key={arm.label}

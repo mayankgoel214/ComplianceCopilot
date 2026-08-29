@@ -1,4 +1,4 @@
-import { generateStructured } from "../ai/gemini-client";
+import { generateStructured, structuredOutputStats } from "../ai/gemini-client";
 import { getGeminiEmbeddingService } from "../ai/gemini-embeddings";
 import { getRetrievalStore } from "../retrieval/store";
 import type { Chunk, ScoredChunk } from "../retrieval/types";
@@ -62,6 +62,20 @@ export interface AssessmentResult {
     groundedRate: number;
   };
   index: { chunkCount: number; sectionCount: number; embeddingModel: string; dimensions: number };
+  /**
+   * How often the model's JSON satisfied its schema first time.
+   *
+   * Cumulative for the lifetime of this server instance, not for this request —
+   * a single assessment makes too few structured calls for a rate to mean
+   * anything. It is reported because "the model returns structured output" is a
+   * claim, and this is the number that makes it checkable.
+   */
+  schemaValidation: {
+    attempts: number;
+    firstPassValid: number;
+    repaired: number;
+    failed: number;
+  };
   trace: TraceSummary;
 }
 
@@ -171,6 +185,7 @@ export async function assessDocument(
         embeddingModel: store.meta.embeddingModel,
         dimensions: store.meta.dimensions,
       },
+      schemaValidation: { ...structuredOutputStats },
       trace: trace.summary(),
     };
   }
@@ -336,6 +351,7 @@ export async function assessDocument(
       embeddingModel: store.meta.embeddingModel,
       dimensions: store.meta.dimensions,
     },
+    schemaValidation: { ...structuredOutputStats },
     trace: trace.summary(),
   };
 }

@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/": ["./data/**", "./eval/results.json"],
     "/evaluation": ["./eval/results.json", "./eval/chunking-results.json"],
+    // The link-preview card reads the evaluation results too, and a route that
+    // reads a file it was not traced for fails only in production.
+    "/opengraph-image": ["./eval/results.json"],
     "/api/assess": ["./data/**"],
     "/api/search": ["./data/**"],
     "/api/index-stats": ["./data/**", "./eval/results.json", "./eval/chunking-results.json"],

@@ -60,6 +60,7 @@ interface AssessResponse {
   frameworks: FrameworkAssessment[];
   grounding: { totalFindings: number; supported: number; unsupported: number; groundedRate: number };
   index: { chunkCount: number; sectionCount: number; embeddingModel: string; dimensions: number };
+  schemaValidation: { attempts: number; firstPassValid: number; repaired: number; failed: number };
   trace: {
     totalMs: number;
     spans: Span[];
@@ -230,6 +231,16 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
               </span>
               <span>{data.runsRemainingThisHour} runs left this hour</span>
             </div>
+            {data.schemaValidation.attempts > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Structured output: {data.schemaValidation.firstPassValid} of{" "}
+                {data.schemaValidation.attempts} model calls satisfied their schema first time,
+                {" "}
+                {data.schemaValidation.repaired} needed one repair,{" "}
+                {data.schemaValidation.failed} failed outright. Counted across this server
+                instance, not this run.
+              </p>
+            ) : null}
             <button
               onClick={() => setShowTrace(!showTrace)}
               className="text-xs underline underline-offset-4 text-muted-foreground hover:text-foreground"

@@ -11,10 +11,10 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingIncludes: {
     "/": ["./data/**", "./eval/results.json"],
-    "/evaluation": ["./eval/results.json"],
+    "/evaluation": ["./eval/results.json", "./eval/chunking-results.json"],
     "/api/assess": ["./data/**"],
     "/api/search": ["./data/**"],
-    "/api/index-stats": ["./data/**", "./eval/results.json"],
+    "/api/index-stats": ["./data/**", "./eval/results.json", "./eval/chunking-results.json"],
     "/api/health": ["./data/**"],
   },
 };

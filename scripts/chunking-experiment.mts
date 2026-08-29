@@ -21,6 +21,9 @@ import path from "node:path";
 
 const OUT_DIR = "data-experiments";
 const REPORT = "docs/chunking-experiment.md";
+// A compact summary the evaluation page renders, so the site shows the measured
+// numbers rather than numbers somebody typed into a paragraph.
+const SUMMARY = "eval/chunking-results.json";
 
 interface Config {
   label: string;
@@ -113,7 +116,33 @@ async function main() {
   }
 
   await writeFile(REPORT, render(measured), "utf8");
-  console.log(`\nWrote ${REPORT}`);
+  await writeFile(
+    SUMMARY,
+    JSON.stringify(
+      {
+        slice: "held-out (paraphrased)",
+        arm: "Dense",
+        configs: measured.map((m) => ({
+          label: m.config.label,
+          note: m.config.note,
+          shipped: m.config.label === "320 / 64",
+          chunkCount: m.chunkCount,
+          recallAt1: pickTest(m.results, "Dense")?.recallAt["1"] ?? null,
+          recallAt10: pickTest(m.results, "Dense")?.recallAt["10"] ?? null,
+          mrr: pickTest(m.results, "Dense")?.mrr ?? null,
+          ndcg: pickTest(m.results, "Dense")?.ndcg ?? null,
+        })),
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  console.log(`Wrote ${REPORT} and ${SUMMARY}`);
+}
+
+function pickTest(results: Results, name: string): Metrics | undefined {
+  return results.configs.find((c) => c.name === name)?.test;
 }
 
 function render(measured: Array<{ config: Config; chunkCount: number; results: Results }>): string {

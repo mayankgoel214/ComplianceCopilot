@@ -34,6 +34,29 @@ interface Results {
   configs: Array<{ name: string; description: string; dev: Metrics; test: Metrics; lookup?: Metrics }>;
 }
 
+interface ChunkingSummary {
+  slice: string;
+  arm: string;
+  configs: Array<{
+    label: string;
+    note: string;
+    shipped: boolean;
+    chunkCount: number;
+    recallAt1: number | null;
+    recallAt10: number | null;
+    mrr: number | null;
+    ndcg: number | null;
+  }>;
+}
+
+async function loadChunking(): Promise<ChunkingSummary | null> {
+  try {
+    return JSON.parse(await readFile("eval/chunking-results.json", "utf8")) as ChunkingSummary;
+  } catch {
+    return null;
+  }
+}
+
 async function loadResults(): Promise<Results | null> {
   try {
     return JSON.parse(await readFile("eval/results.json", "utf8")) as Results;
@@ -103,6 +126,7 @@ function MetricsTable({
 
 export default async function EvaluationPage() {
   const results = await loadResults();
+  const chunking = await loadChunking();
 
   if (!results) {
     return (
@@ -206,6 +230,60 @@ export default async function EvaluationPage() {
           zero.
         </p>
       </section>
+
+      {chunking ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Chunk size</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Four full rebuilds of the index across a fourfold range of chunk sizes, each evaluated
+            by the same harness on the same {chunking.slice} slice. Dense retrieval, reranker off,
+            because the reranker sits downstream of what the chunking makes retrievable.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground text-xs uppercase tracking-wider">
+                <tr className="text-left border-b border-border/60">
+                  <th className="py-2 pr-4 font-medium">Target / overlap</th>
+                  <th className="py-2 pr-4 font-medium text-right">Chunks</th>
+                  <th className="py-2 pr-4 font-medium text-right">R@1</th>
+                  <th className="py-2 pr-4 font-medium text-right">R@10</th>
+                  <th className="py-2 pr-4 font-medium text-right">MRR@10</th>
+                  <th className="py-2 font-medium text-right">nDCG@10</th>
+                </tr>
+              </thead>
+              <tbody className="tabular-nums">
+                {chunking.configs.map((c) => (
+                  <tr
+                    key={c.label}
+                    className={`border-b border-border/40 ${c.shipped ? "bg-primary/5" : ""}`}
+                  >
+                    <td className="py-2 pr-4 font-medium">
+                      {c.label}
+                      {c.shipped ? (
+                        <span className="text-primary ml-2 text-xs">shipped</span>
+                      ) : null}
+                    </td>
+                    <td className="py-2 pr-4 text-right text-muted-foreground">{c.chunkCount}</td>
+                    <td className="py-2 pr-4 text-right">{pct(c.recallAt1 ?? undefined)}</td>
+                    <td className="py-2 pr-4 text-right">{pct(c.recallAt10 ?? undefined)}</td>
+                    <td className="py-2 pr-4 text-right">{c.mrr?.toFixed(3) ?? "—"}</td>
+                    <td className="py-2 text-right">{c.ndcg?.toFixed(3) ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            The result is a null one, and the shipped configuration is deliberately left alone.
+            nDCG@10 moves across a range smaller than {results.gold.test} queries can resolve. What
+            does show a shape is a tradeoff rather than a winner: larger chunks put the answer at
+            rank 1 more often, smaller ones cover more by rank 10. The nominally best row is not
+            adopted, because choosing it on held-out numbers would fit the system to its own test
+            set. Chunk size is a knob that gets turned by reflex; on this corpus it is not where the
+            quality is — reranking is.
+          </p>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-lg font-medium">Configurations</h2>

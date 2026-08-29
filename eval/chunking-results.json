@@ -1,0 +1,46 @@
+{
+  "slice": "held-out (paraphrased)",
+  "arm": "Dense",
+  "configs": [
+    {
+      "label": "160 / 32",
+      "note": "Small chunks. More of them, each more focused.",
+      "shipped": false,
+      "chunkCount": 2117,
+      "recallAt1": 0.3697916666666667,
+      "recallAt10": 0.84375,
+      "mrr": 0.6439236111111112,
+      "ndcg": 0.6618944910512803
+    },
+    {
+      "label": "320 / 64",
+      "note": "The shipped configuration.",
+      "shipped": true,
+      "chunkCount": 1147,
+      "recallAt1": 0.3854166666666667,
+      "recallAt10": 0.84375,
+      "mrr": 0.6513020833333333,
+      "ndcg": 0.6658406998882445
+    },
+    {
+      "label": "320 / 0",
+      "note": "The shipped size with no overlap, to see whether the overlap earns its cost.",
+      "shipped": false,
+      "chunkCount": 1079,
+      "recallAt1": 0.41666666666666663,
+      "recallAt10": 0.828125,
+      "mrr": 0.6850198412698412,
+      "ndcg": 0.6845802307067625
+    },
+    {
+      "label": "640 / 128",
+      "note": "Large chunks. Fewer of them, each carrying more context and more noise.",
+      "shipped": false,
+      "chunkCount": 692,
+      "recallAt1": 0.43229166666666663,
+      "recallAt10": 0.8125,
+      "mrr": 0.6903645833333333,
+      "ndcg": 0.6732235257862907
+    }
+  ]
+}

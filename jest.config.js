@@ -9,25 +9,22 @@ const createJestConfig = nextJest({
 // Add any custom config to be passed to Jest
 const config = {
   coverageProvider: "v8",
-  testEnvironment: "jsdom",
+  // The code under test is server-side: retrieval, grounding, telemetry, the
+  // pgvector store. jsdom would only slow it down and hide Node built-ins.
+  testEnvironment: "node",
   // Add setup files that run before any tests
   setupFiles: ["<rootDir>/jest.polyfills.js"],
   // Add more setup options before each test is run
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   // Mock ES modules that cause issues
   moduleNameMapper: {
-    // Handle module aliases
     "^@/components/(.*)$": "<rootDir>/src/components/$1",
     "^@/lib/(.*)$": "<rootDir>/src/lib/$1",
-    "^@/stores/(.*)$": "<rootDir>/src/stores/$1",
     "^@/app/(.*)$": "<rootDir>/src/app/$1",
     "^@/(.*)$": "<rootDir>/src/$1",
-    // Mock problematic ES modules
-    "^p-queue$": "<rootDir>/src/__mocks__/p-queue.js",
-    "^eventemitter3$": "<rootDir>/src/__mocks__/eventemitter3.js",
   },
   testMatch: ["**/__tests__/**/*.(ts|tsx|js)", "**/*.(test|spec).(ts|tsx|js)"],
-  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/tests/e2e/"],
+  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/e2e/", "<rootDir>/.next/"],
   collectCoverageFrom: [
     "src/**/*.{ts,tsx}",
     "!src/**/*.d.ts",

@@ -12,15 +12,12 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    // no-explicit-any is a warning rather than an error here.
+    // no-explicit-any is a warning rather than an error.
     //
-    // The codebase carries a few hundred of them, largely at the boundaries
-    // where LangChain agent payloads and Gemini responses arrive untyped.
-    // Tightening those is worth doing and is not worth blocking every build on
-    // until it is done — as an error this rule made `next build` fail outright,
-    // which is how the project came to be unbuildable. Left visible as warnings
-    // so the count is a debt that can be paid down rather than one that is
-    // hidden.
+    // As an error it once made `next build` fail outright, which is how this
+    // project came to be unbuildable. The remaining uses are at the boundary
+    // where a Gemini response arrives untyped; left visible as warnings so the
+    // count is a debt that can be paid down rather than one that is hidden.
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
     },
@@ -32,6 +29,9 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
     ],
   },
   {
@@ -45,6 +45,8 @@ const eslintConfig = [
       "**/__tests__/**",
       "jest.setup.js",
       "jest.polyfills.js",
+      "jest.config.js",
+      "e2e/**",
     ],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

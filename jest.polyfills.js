@@ -1,41 +1,11 @@
-// Add polyfills that need to be available before anything else loads
+// Runs before anything else loads.
+//
+// Node 20+ supplies fetch, Request, Response and Headers natively, so the
+// previous hand-written shims here are gone. They were not equivalent to the
+// real classes — the fake Headers was a Map, which meant `headers.get()`
+// behaved differently in tests than in production, and rate-limit tests passed
+// against behaviour the server never had.
+import { TextEncoder, TextDecoder } from "util";
 
-// Add TextEncoder/TextDecoder polyfills
-import { TextEncoder, TextDecoder } from 'util'
-
-global.TextEncoder = TextEncoder
-global.TextDecoder = TextDecoder
-
-// Add fetch polyfill
-import 'whatwg-fetch'
-
-// Polyfill for Response and Request
-if (typeof global.Response === 'undefined') {
-  global.Response = class Response {
-    constructor(body, init) {
-      this.body = body
-      this.status = init?.status || 200
-      this.statusText = init?.statusText || 'OK'
-      this.headers = new Map(Object.entries(init?.headers || {}))
-    }
-
-    async json() {
-      return JSON.parse(this.body)
-    }
-
-    async text() {
-      return this.body
-    }
-  }
-}
-
-if (typeof global.Request === 'undefined') {
-  global.Request = class Request {
-    constructor(input, init) {
-      this.url = input
-      this.method = init?.method || 'GET'
-      this.headers = new Map(Object.entries(init?.headers || {}))
-      this.body = init?.body
-    }
-  }
-}
+if (typeof global.TextEncoder === "undefined") global.TextEncoder = TextEncoder;
+if (typeof global.TextDecoder === "undefined") global.TextDecoder = TextDecoder;

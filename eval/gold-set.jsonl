@@ -1,0 +1,118 @@
+{"id": "ferpa-01", "framework": "FERPA", "query": "Do we need written consent from a student before releasing their transcript to a third party?", "gold": ["34 CFR 99.30"], "difficulty": "direct"}
+{"id": "ferpa-02", "framework": "FERPA", "query": "When can a university share student records without asking the student first?", "gold": ["34 CFR 99.31"], "difficulty": "direct"}
+{"id": "ferpa-03", "framework": "FERPA", "query": "What counts as directory information and how do students opt out of it?", "gold": ["34 CFR 99.37"], "difficulty": "direct"}
+{"id": "ferpa-04", "framework": "FERPA", "query": "Are we required to keep a log of who has requested access to a student's education records?", "gold": ["34 CFR 99.32"], "difficulty": "direct"}
+{"id": "ferpa-05", "framework": "FERPA", "query": "Can we release student records during a campus emergency without consent?", "gold": ["34 CFR 99.36"], "difficulty": "direct"}
+{"id": "ferpa-06", "framework": "FERPA", "query": "What has to go in the annual notice we send students about their privacy rights?", "gold": ["34 CFR 99.7"], "difficulty": "direct"}
+{"id": "ferpa-07", "framework": "FERPA", "query": "How long does an institution have to let a student inspect their own records after they ask?", "gold": ["34 CFR 99.10"], "difficulty": "direct"}
+{"id": "ferpa-08", "framework": "FERPA", "query": "At what point do privacy rights transfer from the parent to the student?", "gold": ["34 CFR 99.5"], "difficulty": "direct"}
+{"id": "ferpa-09", "framework": "FERPA", "query": "A student says their grade record is inaccurate and wants it corrected. What is the process?", "gold": ["34 CFR 99.20", "34 CFR 99.21"], "difficulty": "direct"}
+{"id": "ferpa-10", "framework": "FERPA", "query": "Can a vendor we share student data with pass it on to someone else?", "gold": ["34 CFR 99.33"], "difficulty": "direct"}
+{"id": "ferpa-11", "framework": "FERPA", "query": "Are campus police records covered by education records rules?", "gold": ["34 CFR 99.8"], "difficulty": "direct"}
+{"id": "ferpa-12", "framework": "FERPA", "query": "Can we charge students for photocopies of their education records?", "gold": ["34 CFR 99.11"], "difficulty": "direct"}
+{"id": "hipaa-01", "framework": "HIPAA", "query": "What administrative safeguards does the Security Rule require us to implement?", "gold": ["45 CFR 164.308"], "difficulty": "direct"}
+{"id": "hipaa-02", "framework": "HIPAA", "query": "Do we have to encrypt protected health information at rest and in transit?", "gold": ["45 CFR 164.312"], "difficulty": "direct"}
+{"id": "hipaa-03", "framework": "HIPAA", "query": "How long must we retain our HIPAA policies and documentation?", "gold": ["45 CFR 164.316"], "difficulty": "direct"}
+{"id": "hipaa-04", "framework": "HIPAA", "query": "How quickly must individuals be told after a breach of their health information?", "gold": ["45 CFR 164.404"], "difficulty": "direct"}
+{"id": "hipaa-05", "framework": "HIPAA", "query": "When do we have to report a breach to HHS rather than just to the affected patients?", "gold": ["45 CFR 164.408"], "difficulty": "direct"}
+{"id": "hipaa-06", "framework": "HIPAA", "query": "What obligations does a business associate have when it discovers a breach?", "gold": ["45 CFR 164.410"], "difficulty": "direct"}
+{"id": "hipaa-07", "framework": "HIPAA", "query": "What has to be in a business associate contract?", "gold": ["45 CFR 164.314", "45 CFR 164.504"], "difficulty": "direct"}
+{"id": "hipaa-08", "framework": "HIPAA", "query": "What are the physical security requirements for facilities holding electronic health records?", "gold": ["45 CFR 164.310"], "difficulty": "direct"}
+{"id": "hipaa-09", "framework": "HIPAA", "query": "How do we properly de-identify a health data set before sharing it for research?", "gold": ["45 CFR 164.514"], "difficulty": "direct"}
+{"id": "hipaa-10", "framework": "HIPAA", "query": "What must a notice of privacy practices tell patients?", "gold": ["45 CFR 164.520"], "difficulty": "direct"}
+{"id": "hipaa-11", "framework": "HIPAA", "query": "Can a patient get a copy of their own medical record, and how fast must we provide it?", "gold": ["45 CFR 164.524"], "difficulty": "direct"}
+{"id": "hipaa-12", "framework": "HIPAA", "query": "Do we have to give patients an accounting of everyone we disclosed their information to?", "gold": ["45 CFR 164.528"], "difficulty": "direct"}
+{"id": "hipaa-13", "framework": "HIPAA", "query": "When is a signed authorization required before using health information?", "gold": ["45 CFR 164.508"], "difficulty": "direct"}
+{"id": "hipaa-14", "framework": "HIPAA", "query": "What is the minimum necessary standard for using protected health information?", "gold": ["45 CFR 164.502"], "difficulty": "direct"}
+{"id": "hipaa-15", "framework": "HIPAA", "query": "How is a breach of unsecured protected health information actually defined?", "gold": ["45 CFR 164.402"], "difficulty": "direct"}
+{"id": "hipaa-16", "framework": "HIPAA", "query": "How large can a civil money penalty be for a HIPAA violation?", "gold": ["45 CFR 160.404"], "difficulty": "direct"}
+{"id": "hipaa-17", "framework": "HIPAA", "query": "Who counts as a covered entity subject to these rules?", "gold": ["45 CFR 160.102", "45 CFR 160.103"], "difficulty": "direct"}
+{"id": "hipaa-18", "framework": "HIPAA", "query": "Do we need a designated security official and workforce training?", "gold": ["45 CFR 164.308", "45 CFR 164.530"], "difficulty": "direct"}
+{"id": "gdpr-01", "framework": "GDPR", "query": "What lawful bases can we rely on to process personal data?", "gold": ["GDPR Article 6"], "difficulty": "direct"}
+{"id": "gdpr-02", "framework": "GDPR", "query": "What makes consent valid, and can we bundle it into our terms of service?", "gold": ["GDPR Article 7"], "difficulty": "direct"}
+{"id": "gdpr-03", "framework": "GDPR", "query": "How quickly do we have to report a data breach to the regulator?", "gold": ["GDPR Article 33"], "difficulty": "direct"}
+{"id": "gdpr-04", "framework": "GDPR", "query": "When do we have to tell the affected individuals about a breach, not just the authority?", "gold": ["GDPR Article 34"], "difficulty": "direct"}
+{"id": "gdpr-05", "framework": "GDPR", "query": "Does a user have the right to have their data deleted, and when can we refuse?", "gold": ["GDPR Article 17"], "difficulty": "direct"}
+{"id": "gdpr-06", "framework": "GDPR", "query": "What information must a privacy notice give people when we collect data directly from them?", "gold": ["GDPR Article 13"], "difficulty": "direct"}
+{"id": "gdpr-07", "framework": "GDPR", "query": "Do we need to keep a written record of our processing activities?", "gold": ["GDPR Article 30"], "difficulty": "direct"}
+{"id": "gdpr-08", "framework": "GDPR", "query": "When is a data protection impact assessment mandatory?", "gold": ["GDPR Article 35"], "difficulty": "direct"}
+{"id": "gdpr-09", "framework": "GDPR", "query": "Do we have to appoint a data protection officer?", "gold": ["GDPR Article 37"], "difficulty": "direct"}
+{"id": "gdpr-10", "framework": "GDPR", "query": "What security measures does the regulation actually require of a controller?", "gold": ["GDPR Article 32"], "difficulty": "direct"}
+{"id": "gdpr-11", "framework": "GDPR", "query": "Can we transfer personal data to servers in the United States?", "gold": ["GDPR Article 44", "GDPR Article 45", "GDPR Article 46"], "difficulty": "direct"}
+{"id": "gdpr-12", "framework": "GDPR", "query": "What must be in our contract with a cloud provider that processes data on our behalf?", "gold": ["GDPR Article 28"], "difficulty": "direct"}
+{"id": "gdpr-13", "framework": "GDPR", "query": "Can someone demand a copy of all the personal data we hold on them?", "gold": ["GDPR Article 15"], "difficulty": "direct"}
+{"id": "gdpr-14", "framework": "GDPR", "query": "Are we allowed to make decisions about people purely by algorithm?", "gold": ["GDPR Article 22"], "difficulty": "direct"}
+{"id": "gdpr-15", "framework": "GDPR", "query": "What extra rules apply to processing health data or biometric data?", "gold": ["GDPR Article 9"], "difficulty": "direct"}
+{"id": "gdpr-16", "framework": "GDPR", "query": "What does data protection by design and by default require in practice?", "gold": ["GDPR Article 25"], "difficulty": "direct"}
+{"id": "gdpr-17", "framework": "GDPR", "query": "How large can GDPR fines get and what determines the amount?", "gold": ["GDPR Article 83"], "difficulty": "direct"}
+{"id": "gdpr-18", "framework": "GDPR", "query": "Does the regulation apply to us if we are outside the EU but have EU users?", "gold": ["GDPR Article 3"], "difficulty": "direct"}
+{"id": "gdpr-19", "framework": "GDPR", "query": "What age of consent applies to children using an online service?", "gold": ["GDPR Article 8"], "difficulty": "direct"}
+{"id": "gdpr-20", "framework": "GDPR", "query": "Can a user ask us to export their data in a machine-readable format?", "gold": ["GDPR Article 20"], "difficulty": "direct"}
+{"id": "irb-01", "framework": "IRB", "query": "What criteria must an IRB apply before approving a research study?", "gold": ["45 CFR 46.111"], "difficulty": "direct"}
+{"id": "irb-02", "framework": "IRB", "query": "What has to be disclosed to participants as part of informed consent?", "gold": ["45 CFR 46.116"], "difficulty": "direct"}
+{"id": "irb-03", "framework": "IRB", "query": "When can informed consent be documented with a short form or waived entirely?", "gold": ["45 CFR 46.117"], "difficulty": "direct"}
+{"id": "irb-04", "framework": "IRB", "query": "Which kinds of research are exempt from IRB review?", "gold": ["45 CFR 46.104"], "difficulty": "direct"}
+{"id": "irb-05", "framework": "IRB", "query": "Can a study qualify for expedited review instead of full board review?", "gold": ["45 CFR 46.110"], "difficulty": "direct"}
+{"id": "irb-06", "framework": "IRB", "query": "How many members does an IRB need and what expertise must be represented?", "gold": ["45 CFR 46.107"], "difficulty": "direct"}
+{"id": "irb-07", "framework": "IRB", "query": "What records does an IRB have to keep and for how long?", "gold": ["45 CFR 46.115"], "difficulty": "direct"}
+{"id": "irb-08", "framework": "IRB", "query": "What extra protections apply to research involving children?", "gold": ["45 CFR 46.404", "45 CFR 46.405", "45 CFR 46.408"], "difficulty": "direct"}
+{"id": "irb-09", "framework": "IRB", "query": "What are the rules for research involving prisoners?", "gold": ["45 CFR 46.305", "45 CFR 46.306"], "difficulty": "direct"}
+{"id": "irb-10", "framework": "IRB", "query": "Can an IRB suspend or terminate a study it already approved?", "gold": ["45 CFR 46.113"], "difficulty": "direct"}
+{"id": "irb-11", "framework": "IRB", "query": "What counts as human subjects research in the first place?", "gold": ["45 CFR 46.102"], "difficulty": "direct"}
+{"id": "irb-12", "framework": "IRB", "query": "When multiple institutions collaborate on one study, does each need its own IRB review?", "gold": ["45 CFR 46.114"], "difficulty": "direct"}
+{"id": "508-01", "framework": "ADA/Section 508", "query": "What accessibility standard must our web content meet for federal procurement?", "gold": ["36 CFR Part 1194, Appendix A to Part 1194 — E205 Electronic Content"], "difficulty": "direct"}
+{"id": "508-02", "framework": "ADA/Section 508", "query": "Does software we build have to work with screen readers and other assistive technology?", "gold": ["36 CFR Part 1194, Appendix C to Part 1194 — 502 Interoperability With Assistive Technology"], "difficulty": "direct"}
+{"id": "508-03", "framework": "ADA/Section 508", "query": "When can we claim an undue burden exception to accessibility requirements?", "gold": ["36 CFR Part 1194, Appendix A to Part 1194 — E202 General Exceptions"], "difficulty": "direct"}
+{"id": "508-04", "framework": "ADA/Section 508", "query": "Do we have to make our help documentation and support channels accessible too?", "gold": ["36 CFR Part 1194, Appendix C to Part 1194 — 602 Support Documentation", "36 CFR Part 1194, Appendix C to Part 1194 — 603 Support Services"], "difficulty": "direct"}
+{"id": "508-05", "framework": "ADA/Section 508", "query": "What are the functional performance criteria for users with limited vision or hearing?", "gold": ["36 CFR Part 1194, Appendix C to Part 1194 — 302 Functional Performance Criteria"], "difficulty": "direct"}
+{"id": "508-06", "framework": "ADA/Section 508", "query": "Are there requirements about using colour alone to convey information?", "gold": ["36 CFR Part 1194, Appendix C to Part 1194 — 410 Color Coding"], "difficulty": "direct"}
+{"id": "export-01", "framework": "Export Controls (EAR/ITAR)", "query": "Is research we publish openly still subject to export control rules?", "gold": ["15 CFR 734.8", "15 CFR 734.7"], "difficulty": "direct"}
+{"id": "export-02", "framework": "Export Controls (EAR/ITAR)", "query": "Does showing controlled technology to a foreign national in our own lab count as an export?", "gold": ["15 CFR 734.13", "15 CFR 734.15"], "difficulty": "direct"}
+{"id": "export-03", "framework": "Export Controls (EAR/ITAR)", "query": "How much US content makes a foreign-made product subject to the EAR?", "gold": ["15 CFR 734.4"], "difficulty": "direct"}
+{"id": "export-04", "framework": "Export Controls (EAR/ITAR)", "query": "Is storing encrypted data on a foreign cloud server an export?", "gold": ["15 CFR 734.18"], "difficulty": "direct"}
+{"id": "export-05", "framework": "Export Controls (EAR/ITAR)", "query": "What is technical data under ITAR and how does it differ from public domain information?", "gold": ["22 CFR 120.33", "22 CFR 120.34"], "difficulty": "direct"}
+{"id": "export-06", "framework": "Export Controls (EAR/ITAR)", "query": "Do we have to register with the State Department before working on defence articles?", "gold": ["22 CFR 120.13"], "difficulty": "direct"}
+{"id": "export-07", "framework": "Export Controls (EAR/ITAR)", "query": "What penalties apply for an ITAR violation?", "gold": ["22 CFR 120.19"], "difficulty": "direct"}
+{"id": "export-08", "framework": "Export Controls (EAR/ITAR)", "query": "How do we determine whether an item falls under ITAR or the EAR?", "gold": ["22 CFR 120.4", "22 CFR 120.11"], "difficulty": "direct"}
+{"id":"hard-01","framework":"FERPA","query":"A professor wants to post final marks on their office door using the last four digits of ID numbers. Is that allowed?","gold":["34 CFR 99.30","34 CFR 99.37"],"difficulty":"paraphrased"}
+{"id":"hard-02","framework":"FERPA","query":"Our alumni office wants to give a fundraising firm a list of graduates with their majors and years attended.","gold":["34 CFR 99.37"],"difficulty":"paraphrased"}
+{"id":"hard-03","framework":"FERPA","query":"A parent of a 20-year-old undergraduate is demanding to see their child's grades.","gold":["34 CFR 99.5","34 CFR 99.31"],"difficulty":"paraphrased"}
+{"id":"hard-04","framework":"FERPA","query":"An accreditation body has asked us for samples of coursework tied to named students.","gold":["34 CFR 99.31"],"difficulty":"paraphrased"}
+{"id":"hard-05","framework":"FERPA","query":"Someone threatened self-harm in a dorm and the counselling centre wants their academic file.","gold":["34 CFR 99.36"],"difficulty":"paraphrased"}
+{"id":"hard-06","framework":"HIPAA","query":"A nurse looked up her neighbour's chart out of curiosity. What did we fail to have in place?","gold":["45 CFR 164.308","45 CFR 164.312"],"difficulty":"paraphrased"}
+{"id":"hard-07","framework":"HIPAA","query":"A laptop with 900 patient files was stolen from a car. What do we now owe, and to whom?","gold":["45 CFR 164.404","45 CFR 164.406","45 CFR 164.408"],"difficulty":"paraphrased"}
+{"id":"hard-08","framework":"HIPAA","query":"We want to hand a research team a spreadsheet of visits with birth dates and ZIP codes removed.","gold":["45 CFR 164.514"],"difficulty":"paraphrased"}
+{"id":"hard-09","framework":"HIPAA","query":"Our transcription vendor subcontracts to an offshore firm we have never signed anything with.","gold":["45 CFR 164.502","45 CFR 164.504"],"difficulty":"paraphrased"}
+{"id":"hard-10","framework":"HIPAA","query":"A patient wants us to stop telling their insurer about a visit they paid for themselves.","gold":["45 CFR 164.522"],"difficulty":"paraphrased"}
+{"id":"hard-11","framework":"HIPAA","query":"How often do we have to redo our risk analysis, and does the rule actually say a number?","gold":["45 CFR 164.308","45 CFR 164.306"],"difficulty":"paraphrased"}
+{"id":"hard-12","framework":"GDPR","query":"Our signup form has a pre-ticked box for marketing email. Is that a problem?","gold":["GDPR Article 7","GDPR Article 4"],"difficulty":"paraphrased"}
+{"id":"hard-13","framework":"GDPR","query":"An ex-customer emailed on Friday demanding we wipe everything. How long do we have?","gold":["GDPR Article 12","GDPR Article 17"],"difficulty":"paraphrased"}
+{"id":"hard-14","framework":"GDPR","query":"We found unauthorised access to our user table on Monday morning. Clock started when?","gold":["GDPR Article 33"],"difficulty":"paraphrased"}
+{"id":"hard-15","framework":"GDPR","query":"We want to use a US analytics vendor that stores raw event logs in Virginia.","gold":["GDPR Article 44","GDPR Article 46"],"difficulty":"paraphrased"}
+{"id":"hard-16","framework":"GDPR","query":"Our model automatically declines loan applications with no person in the loop.","gold":["GDPR Article 22"],"difficulty":"paraphrased"}
+{"id":"hard-17","framework":"GDPR","query":"We plan to scrape public profiles to build a candidate database and never contact the people first.","gold":["GDPR Article 14","GDPR Article 6"],"difficulty":"paraphrased"}
+{"id":"hard-18","framework":"GDPR","query":"We are rolling out facial recognition at our office entrance for staff attendance.","gold":["GDPR Article 9","GDPR Article 35"],"difficulty":"paraphrased"}
+{"id":"hard-19","framework":"IRB","query":"A grad student wants to interview undergraduates about drug use and keep names attached.","gold":["45 CFR 46.111","45 CFR 46.116"],"difficulty":"paraphrased"}
+{"id":"hard-20","framework":"IRB","query":"Can we analyse an existing de-identified dataset without going to the full board?","gold":["45 CFR 46.104"],"difficulty":"paraphrased"}
+{"id":"hard-21","framework":"IRB","query":"A study on a new teaching method in a middle school — whose permission do we need?","gold":["45 CFR 46.408","45 CFR 46.404"],"difficulty":"paraphrased"}
+{"id":"hard-22","framework":"IRB","query":"Participants are being paid $500, which is a lot for the population we are recruiting.","gold":["45 CFR 46.111","45 CFR 46.116"],"difficulty":"paraphrased"}
+{"id":"hard-23","framework":"IRB","query":"An adverse event happened mid-study and the PI wants to keep enrolling.","gold":["45 CFR 46.113","45 CFR 46.108"],"difficulty":"paraphrased"}
+{"id":"hard-24","framework":"IRB","query":"Our survey is anonymous and takes four minutes. Do we still need a signed form?","gold":["45 CFR 46.117"],"difficulty":"paraphrased"}
+{"id":"hard-25","framework":"ADA/Section 508","query":"Our training videos have no captions and the audio carries information not shown on screen.","gold":["36 CFR Part 1194, Appendix A to Part 1194 — E205 Electronic Content","36 CFR Part 1194, Appendix C to Part 1194 — 302 Functional Performance Criteria"],"difficulty":"paraphrased"}
+{"id":"hard-26","framework":"ADA/Section 508","query":"A blind employee cannot use our internal expense tool because the buttons are unlabelled images.","gold":["36 CFR Part 1194, Appendix C to Part 1194 — 502 Interoperability With Assistive Technology","36 CFR Part 1194, Appendix C to Part 1194 — 503 Applications"],"difficulty":"paraphrased"}
+{"id":"hard-27","framework":"ADA/Section 508","query":"We are buying a commercial product off the shelf and the vendor says it is mostly conformant.","gold":["36 CFR Part 1194, Appendix A to Part 1194 — E202 General Exceptions","36 CFR Part 1194, Appendix A to Part 1194 — E201 Application"],"difficulty":"paraphrased"}
+{"id":"hard-28","framework":"Export Controls (EAR/ITAR)","query":"A visiting scholar from abroad will be working in a lab that builds sensor prototypes.","gold":["15 CFR 734.13","15 CFR 734.15"],"difficulty":"paraphrased"}
+{"id":"hard-29","framework":"Export Controls (EAR/ITAR)","query":"We want to put our simulation code on GitHub under an open licence.","gold":["15 CFR 734.7","15 CFR 734.8"],"difficulty":"paraphrased"}
+{"id":"hard-30","framework":"Export Controls (EAR/ITAR)","query":"Our backups sit in a data centre in Ireland but everything is end-to-end encrypted with keys held here.","gold":["15 CFR 734.18"],"difficulty":"paraphrased"}
+{"id":"hard-31","framework":"Export Controls (EAR/ITAR)","query":"We are unsure whether our drone airframe belongs on the Munitions List or the Commerce list.","gold":["22 CFR 120.4","22 CFR 120.11"],"difficulty":"paraphrased"}
+{"id":"hard-32","framework":"Export Controls (EAR/ITAR)","query":"An engineer emailed a design drawing to a colleague at our subsidiary in Germany.","gold":["22 CFR 120.50","22 CFR 120.33"],"difficulty":"paraphrased"}
+{"id":"lookup-01","framework":"HIPAA","query":"45 CFR 164.312","gold":["45 CFR 164.312"],"difficulty":"lookup"}
+{"id":"lookup-02","framework":"HIPAA","query":"what does 164.308 require","gold":["45 CFR 164.308"],"difficulty":"lookup"}
+{"id":"lookup-03","framework":"FERPA","query":"99.31 text","gold":["34 CFR 99.31"],"difficulty":"lookup"}
+{"id":"lookup-04","framework":"GDPR","query":"GDPR Article 30","gold":["GDPR Article 30"],"difficulty":"lookup"}
+{"id":"lookup-05","framework":"GDPR","query":"Article 9 special categories","gold":["GDPR Article 9"],"difficulty":"lookup"}
+{"id":"lookup-06","framework":"IRB","query":"46.116 informed consent general requirements","gold":["45 CFR 46.116"],"difficulty":"lookup"}
+{"id":"lookup-07","framework":"Export Controls (EAR/ITAR)","query":"734.4 de minimis","gold":["15 CFR 734.4"],"difficulty":"lookup"}
+{"id":"lookup-08","framework":"Export Controls (EAR/ITAR)","query":"22 CFR 120.33","gold":["22 CFR 120.33"],"difficulty":"lookup"}
+{"id":"lookup-09","framework":"ADA/Section 508","query":"E202 general exceptions","gold":["36 CFR Part 1194, Appendix A to Part 1194 — E202 General Exceptions"],"difficulty":"lookup"}
+{"id":"lookup-10","framework":"HIPAA","query":"160.404 civil money penalty amount","gold":["45 CFR 160.404"],"difficulty":"lookup"}

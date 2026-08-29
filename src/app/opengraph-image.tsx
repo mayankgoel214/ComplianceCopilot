@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-export const alt = 'ComplianceCopilot';
+export const alt = 'Verity';
 
 /** Generated at build time so pasting the link anywhere yields a real card. */
 export default function OgImage() {

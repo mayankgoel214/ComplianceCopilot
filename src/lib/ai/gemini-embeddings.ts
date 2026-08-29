@@ -1,4 +1,22 @@
-import { TaskType } from '@google/generative-ai';
+/**
+ * Gemini's task-type values, inlined.
+ *
+ * They used to come from `@google/generative-ai`, pulled in transitively by the
+ * LangChain wrapper this file stopped using. Three string constants are not
+ * worth a dependency, and depending on a package that nothing else imports is
+ * how a build breaks for a reason nobody can find.
+ *
+ * Asymmetric embedding matters here: a passage and a question about that
+ * passage are not the same kind of text, and embedding both as RETRIEVAL_QUERY
+ * measurably degrades retrieval.
+ */
+const TaskType = {
+  RETRIEVAL_QUERY: 'RETRIEVAL_QUERY',
+  RETRIEVAL_DOCUMENT: 'RETRIEVAL_DOCUMENT',
+  SEMANTIC_SIMILARITY: 'SEMANTIC_SIMILARITY',
+} as const;
+
+type TaskType = (typeof TaskType)[keyof typeof TaskType];
 import { getGeminiApiKey, AI_CONFIG } from './config';
 
 export interface EmbeddingConfig {
@@ -42,12 +60,15 @@ export class GeminiEmbeddingService {
 
   private initializeService(): void {
     try {
-      const apiKey = getGeminiApiKey();
-
-      // Nothing to construct any more. Embedding requests go straight to the
-      // REST API, because this wrapper accepts outputDimensionality and does
-      // not send it — its own types now say so outright, which is what made
-      // every embedding come back at 3072 dimensions instead of 768.
+      // Nothing to construct any more: embedding requests go straight to the
+      // REST API, because the LangChain wrapper accepts outputDimensionality
+      // and does not send it — which is what made every embedding come back at
+      // 3072 dimensions instead of 768.
+      //
+      // The key is read here anyway, so that a missing one is a construction
+      // failure rather than a failure on the first embedding call, several
+      // seconds into a request the user is waiting on.
+      getGeminiApiKey();
 
       console.log(`Gemini embedding service initialized with ${this.config.model} (${this.config.dimensions}D)`);
     } catch (error) {

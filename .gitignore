@@ -12,3 +12,12 @@ __pycache__/
 chroma_db/
 .chromadb/
 env.download
+.env*
+
+# Fetch caches and chunking-experiment output. The shipped index in data/ is committed.
+.corpus-cache/
+.embedding-cache/
+data-experiments/
+test-results/
+playwright-report/
+coverage/

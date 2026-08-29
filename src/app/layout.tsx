@@ -28,11 +28,15 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
+/**
+ * Two labels each. On a 375px screen the long ones truncated to "Retr" and
+ * pushed Evaluation off the end of a scroller nobody could tell was scrollable,
+ * so half the site looked unreachable on a phone.
+ */
 const NAV = [
-  { href: "/", label: "Overview" },
-  { href: "/assess", label: "Assess a document" },
-  { href: "/search", label: "Retrieval playground" },
-  { href: "/evaluation", label: "Evaluation" },
+  { href: "/assess", short: "Assess", label: "Assess a document" },
+  { href: "/search", short: "Search", label: "Retrieval playground" },
+  { href: "/evaluation", short: "Eval", label: "Evaluation" },
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -44,14 +48,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <Link href="/" className="font-semibold tracking-tight text-base shrink-0">
               Verity
             </Link>
-            <div className="flex items-center gap-1 overflow-x-auto">
-              {NAV.slice(1).map((item) => (
+            <div className="flex items-center gap-0.5 sm:gap-1 min-w-0">
+              {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-muted/60 whitespace-nowrap"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors px-2 sm:px-3 py-1.5 rounded-md hover:bg-muted/60 whitespace-nowrap"
                 >
-                  {item.label}
+                  <span className="sm:hidden">{item.short}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               ))}
             </div>
@@ -59,7 +64,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               href="https://github.com/mayankgoel214/Verity"
               target="_blank"
               rel="noreferrer"
-              className="ml-auto text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+              className="ml-auto pl-2 text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
             >
               Source
             </a>

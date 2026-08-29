@@ -30,7 +30,17 @@ const nextConfig: NextConfig = {
     "/api/health": ["./data/**"],
     // pdfjs loads its worker from disk at parse time, so the file has to be in
     // the deployed bundle. Nothing imports it, so the tracer cannot find it.
-    "/api/extract": ["./node_modules/pdf-parse/dist/**"],
+    // pdfjs loads its worker from disk and reaches for @napi-rs/canvas to get
+    // DOM globals that Node does not provide. Nothing imports either of them
+    // statically, so the tracer cannot find them and they have to be named.
+    // Without the canvas package the module fails to evaluate at all, with
+    // "DOMMatrix is not defined" thrown from the import rather than the parse.
+    "/api/extract": [
+      "./node_modules/pdf-parse/dist/**",
+      "./node_modules/pdfjs-dist/legacy/build/**",
+      "./node_modules/@napi-rs/canvas/**",
+      "./node_modules/@napi-rs/canvas-*/**",
+    ],
   },
 };
 

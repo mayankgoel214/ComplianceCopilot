@@ -104,7 +104,7 @@ export function checkRateLimit(
     return {
       allowed: false,
       reason:
-        "This endpoint has hit its daily limit. It runs a real model against a real budget, so the ceiling is deliberate — try again tomorrow, or run it locally from the repository.",
+        "Verity has hit its limit for today. Every run calls a real model on a real budget, so the ceiling is deliberate rather than a fault — try again tomorrow, or clone the repository and run it with your own key.",
       retryAfterSeconds,
       remaining: 0,
     };
@@ -125,7 +125,7 @@ export function checkRateLimit(
     );
     return {
       allowed: false,
-      reason: `You have used this endpoint ${config.perVisitorLimit} times this hour, which is the per-visitor limit.`,
+      reason: `You have had your ${config.perVisitorLimit} runs for this hour. The limit exists because each one costs real money against a real model; it resets within the hour, and the repository runs the whole thing locally with your own key.`,
       retryAfterSeconds,
       remaining: 0,
     };

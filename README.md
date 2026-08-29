@@ -1,5 +1,7 @@
 # Verity
 
+[![CI](https://github.com/mayankgoel214/Verity/actions/workflows/ci.yml/badge.svg)](https://github.com/mayankgoel214/Verity/actions/workflows/ci.yml)
+
 Reads a research or academic document, works out which regulatory frameworks it
 touches, retrieves the sections that actually apply, and reports what is missing
 — quoting the regulation behind every finding, and **checking that the quote is

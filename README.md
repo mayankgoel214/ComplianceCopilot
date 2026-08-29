@@ -11,6 +11,11 @@ Live, no account needed: **https://verity-compliance.vercel.app**
 - `/search` — one query ranked three ways at once, so you can disagree with the evaluation
 - `/evaluation` — recall@k, MRR and nDCG on a held-out labelled set, including the configurations that lost
 
+An 84-second walkthrough recorded against the live site is at
+[`docs/verity-demo.mp4`](docs/verity-demo.mp4). It is produced by
+`npx tsx scripts/record-demo.mts` followed by `python3 scripts/caption-frames.py`,
+so its numbers are whatever the deployment returned while it ran.
+
 ---
 
 ## The problem this is built around

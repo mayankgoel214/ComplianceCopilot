@@ -38,6 +38,16 @@ export const SEARCH_BUCKET: BucketConfig = {
   globalDailyLimit: 2000,
 };
 
+/** File extraction costs CPU and memory but no model call, so it is metered
+ *  generously — the point of the limit is to stop a script, not a person who
+ *  has several documents to try. */
+export const EXTRACT_BUCKET: BucketConfig = {
+  name: "extract",
+  perVisitorLimit: 30,
+  perVisitorWindowMs: 60 * 60 * 1000,
+  globalDailyLimit: 1000,
+};
+
 /** Retrieval playground runs that include the LLM reranker cost a generation
  *  call each, so they are metered separately from plain retrieval. */
 export const RERANK_BUCKET: BucketConfig = {

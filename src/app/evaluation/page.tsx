@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import { QualityAgainstLatency, RecallCurve, type ConfigPoint } from "./charts";
 import { readFile } from "node:fs/promises";
 
 /**
@@ -146,6 +148,14 @@ export default async function EvaluationPage() {
 
   const maxSweep = Math.max(...results.fusionWeightSweep.map((s) => s.ndcg));
 
+  const chartPoints: ConfigPoint[] = results.configs.map((c) => ({
+    name: c.name,
+    recallAt: c.test.recallAt,
+    ndcg: c.test.ndcg,
+    mrr: c.test.mrr,
+    medianLatencyMs: c.test.medianLatencyMs,
+  }));
+
   return (
     <div className="mx-auto max-w-4xl px-5 py-10 space-y-12">
       <header className="space-y-3">
@@ -174,6 +184,31 @@ export default async function EvaluationPage() {
           section&apos;s vocabulary. These are the numbers that mean something.
         </p>
         <MetricsTable configs={results.configs} slice="test" />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-medium">The same numbers, as shapes</h2>
+        <p className="text-sm text-fg-muted leading-relaxed">
+          Two things the table cannot show. On the left, how the configurations converge as k
+          grows — BM25 never catches up, and the reranker&apos;s advantage is largest at the top of
+          the list, where it matters. On the right, what that advantage costs: latency is on a log
+          scale because a flat vector scan answers in a millisecond and a model call takes eleven
+          seconds, and on a linear axis every row but one would sit on zero.
+        </p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border border-line bg-surface p-4">
+            <h3 className="text-[11px] font-medium uppercase tracking-[0.14em] text-fg-faint mb-3">
+              Recall at k · held out
+            </h3>
+            <RecallCurve configs={chartPoints} />
+          </div>
+          <div className="rounded-lg border border-line bg-surface p-4">
+            <h3 className="text-[11px] font-medium uppercase tracking-[0.14em] text-fg-faint mb-3">
+              nDCG@10 against latency · held out
+            </h3>
+            <QualityAgainstLatency configs={chartPoints} />
+          </div>
+        </div>
       </section>
 
       {results.gold.lookup ? (

@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 
-import { Badge, Button, Card, Citation, ErrorNote, Quote, Skeleton } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  buttonClass,
+  Card,
+  Citation,
+  ErrorNote,
+  Quote,
+  Skeleton,
+} from "@/components/ui";
 
 /**
  * The assessment page.
@@ -118,12 +127,62 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
   const [stages, setStages] = useState<StageEvent[]>([]);
   const [partial, setPartial] = useState<FrameworkAssessment[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
+  const [upload, setUpload] = useState<{ filename: string; note: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  async function handleFile(file: File) {
+    setUploading(true);
+    setError(null);
+    setUpload(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch("/api/extract", { method: "POST", body: form });
+      const body = (await response.json()) as {
+        text?: string;
+        chars?: number;
+        originalChars?: number;
+        truncated?: boolean;
+        kind?: string;
+        pages?: number;
+        warnings?: string[];
+        error?: string;
+      };
+      if (!response.ok || !body.text) {
+        setError(body.error ?? `Could not read that file (${response.status}).`);
+        return;
+      }
+      setDocument(body.text);
+      setUsingSample(false);
+      setData(null);
+      setStages([]);
+
+      // Says what was actually extracted, so a reader can tell a full document
+      // from a truncated one before spending a run on it.
+      const parts = [
+        body.kind === "pdf" && body.pages ? `${body.pages} pages` : null,
+        `${body.chars?.toLocaleString()} characters`,
+        body.truncated
+          ? `truncated from ${body.originalChars?.toLocaleString()} — only the first part will be assessed`
+          : null,
+        ...(body.warnings ?? []).slice(0, 2),
+      ].filter(Boolean);
+      setUpload({ filename: file.name, note: parts.join(" · ") });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "That upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function loadSample() {
     setDocument(sampleDocument);
     setUsingSample(true);
+    setUpload(null);
     setData(null);
     setError(null);
+    setStages([]);
   }
 
   async function run(useSample: boolean) {
@@ -219,6 +278,22 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
       </header>
 
       <div className="space-y-3">
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) void handleFile(file);
+          }}
+          className={`relative rounded-lg transition-colors ${
+            dragging ? "ring-2 ring-accent ring-offset-2 ring-offset-bg" : ""
+          }`}
+        >
         <textarea
           value={document}
           onChange={(e) => {
@@ -230,6 +305,12 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
           aria-label="Document to assess"
           className="w-full rounded-lg border border-line bg-surface px-4 py-3 text-[13px] font-mono leading-relaxed outline-none transition-colors focus:border-accent placeholder:text-fg-faint resize-y"
         />
+        {dragging ? (
+          <div className="absolute inset-0 rounded-lg bg-[var(--accent-soft)] grid place-items-center pointer-events-none">
+            <span className="text-sm font-medium text-accent">Drop to read the file</span>
+          </div>
+        ) : null}
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => void run(false)} disabled={loading || document.trim().length < 200}>
             {loading ? "Running…" : "Assess this document"}
@@ -237,12 +318,33 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
           <Button onClick={loadSample} disabled={loading} variant="secondary">
             Load the sample document
           </Button>
+          <label className={buttonClass("secondary")} data-testid="upload-label">
+            <input
+              type="file"
+              accept=".pdf,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+              className="sr-only"
+              disabled={loading || uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleFile(file);
+                // Cleared so choosing the same file twice still fires a change.
+                e.target.value = "";
+              }}
+            />
+            {uploading ? "Reading…" : "Upload a file"}
+          </label>
           <span className="text-xs text-fg-muted">
             {document.trim().length > 0 && document.trim().length < 200
               ? `${200 - document.trim().length} more characters needed`
               : "Three runs per visitor per hour"}
           </span>
         </div>
+
+        {upload ? (
+          <p className="text-xs text-fg-muted">
+            <span className="text-fg">{upload.filename}</span> — {upload.note}
+          </p>
+        ) : null}
 
         {usingSample && document === sampleDocument ? (
           <p className="text-xs text-fg-muted">

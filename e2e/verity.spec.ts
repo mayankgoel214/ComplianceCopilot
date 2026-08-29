@@ -43,6 +43,20 @@ test.describe("navigation and static pages", () => {
     }
   });
 
+  test("the evaluation page draws its charts from the measured numbers", async ({ page }) => {
+    await page.goto("/evaluation");
+    await expect(page.getByText("The same numbers, as shapes")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /recall at k/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /against latency/i })).toBeVisible();
+    // One wrapper per chart. `recharts-surface` is nested several deep per
+    // chart, so counting those counts an implementation detail rather than the
+    // two charts this test is about.
+    await expect(page.locator(".recharts-wrapper")).toHaveCount(2);
+    // The lines are drawn from the measured numbers, so an empty chart is a
+    // failure even when the container renders.
+    expect(await page.locator(".recharts-line").count()).toBeGreaterThan(3);
+  });
+
   test("the evaluation page renders the measured table, including the losing configuration", async ({
     page,
   }) => {
@@ -135,6 +149,43 @@ test.describe("retrieval playground", () => {
     for (const arm of body.arms) {
       for (const hit of arm.results) expect(hit.framework).toBe("GDPR");
     }
+  });
+});
+
+test.describe("file upload", () => {
+  // Extraction needs no model, so these run everywhere.
+  test("reads an uploaded text file into the box", async ({ page }) => {
+    await page.goto("/assess");
+    const box = page.getByLabel("Document to assess");
+    await expect(box).toHaveValue("");
+
+    await page.setInputFiles('input[type="file"]', {
+      name: "plan.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "DATA MANAGEMENT PLAN\n\n" +
+          "Student identifiers and course grades are held in a PostgreSQL database. ".repeat(6),
+        "utf8"
+      ),
+    });
+
+    await expect(box).not.toHaveValue("", { timeout: 20_000 });
+    await expect(page.getByText(/plan\.txt/)).toBeVisible();
+    await expect(page.getByText(/characters/)).toBeVisible();
+  });
+
+  test("refuses a file type it cannot read, and says which it can", async ({ request }) => {
+    const form = new FormData();
+    form.set("file", new Blob([Buffer.alloc(2048, 1)], { type: "image/png" }), "diagram.png");
+    const response = await request.post("/api/extract", { multipart: form as never });
+    expect(response.status()).toBe(422);
+    expect((await response.json()).error).toMatch(/PDF, Word/i);
+  });
+
+  test("refuses a request with no file attached", async ({ request }) => {
+    const form = new FormData();
+    const response = await request.post("/api/extract", { multipart: form as never });
+    expect(response.status()).toBe(400);
   });
 });
 

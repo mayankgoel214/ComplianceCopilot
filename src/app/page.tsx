@@ -1,21 +1,12 @@
-import Link from "next/link";
 import { readFile } from "node:fs/promises";
 
 import { getRetrievalStore } from "@/lib/retrieval/store";
+import { ButtonLink, Card, Citation, Section, Stat } from "@/components/ui";
 
-/**
- * The overview page.
- *
- * Numbers on this page are read from the committed index and the committed
- * evaluation results at render time, so a stale figure is impossible: if the
- * index changes and the report is not regenerated, the page shows nothing
- * rather than last week's number.
- */
 export const revalidate = 3600;
 
 interface EvalResults {
-  gold: { total: number; dev: number; test: number; labelledSections: number };
-  chosenLexicalWeight: number;
+  gold: { total: number; dev: number; test: number };
   configs: Array<{
     name: string;
     test: { recallAt: Record<string, number>; mrr: number; ndcg: number; n: number };
@@ -30,23 +21,14 @@ async function loadEval(): Promise<EvalResults | null> {
   }
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-lg border border-border/60 bg-card/40 px-4 py-3">
-      <div className="text-2xl font-semibold tabular-nums tracking-tight">{value}</div>
-      <div className="text-xs text-muted-foreground mt-0.5 leading-snug">{label}</div>
-    </div>
-  );
-}
-
 const STEPS = [
   {
     title: "Classify",
-    body: "One model call decides which of eight frameworks the document actually touches, and why. It is required to say what in the document triggered each one, which makes a wrong answer visible instead of merely plausible.",
+    body: "One call decides which of eight frameworks the document actually touches, and must say what in the document triggered each one — so a wrong answer is visible rather than merely plausible.",
   },
   {
     title: "Decompose",
-    body: "The classifier also emits short concerns — the specific things in this document that might create an obligation. Those become the retrieval queries. Embedding a whole document as one vector retrieves nothing in particular.",
+    body: "The same call emits short concerns: the specific things in this document that might create an obligation. Those become the retrieval queries. Embedding a whole document as one vector retrieves nothing in particular.",
   },
   {
     title: "Retrieve",
@@ -68,104 +50,107 @@ export default async function HomePage() {
   const best = evaluation?.configs.reduce((a, b) => (b.test.ndcg > a.test.ndcg ? b : a));
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12 space-y-16">
-      <section className="space-y-5 max-w-3xl">
-        <h1 className="text-4xl font-semibold tracking-tight leading-tight">
-          Compliance findings you can check.
-        </h1>
-        <p className="text-lg text-muted-foreground leading-relaxed">
-          Verity reads a research or academic document, works out which regulatory frameworks it
-          touches, retrieves the sections that actually apply, and reports what is missing — quoting
-          the regulation behind every finding.
+    <div className="mx-auto max-w-6xl px-5 py-16 sm:py-24 space-y-20 sm:space-y-28">
+      <section className="max-w-3xl animate-rise">
+        <p className="text-[12px] font-medium uppercase tracking-[0.16em] text-accent mb-5">
+          Retrieval-augmented compliance assessment
         </p>
-        <p className="text-muted-foreground leading-relaxed">
+        <h1 className="text-[42px] sm:text-[64px] leading-[1.03]">
+          Compliance findings
+          <br />
+          you can check.
+        </h1>
+        <p className="text-[17px] sm:text-[19px] text-fg-muted leading-relaxed mt-7 max-w-2xl">
+          Verity reads a research or academic document, works out which regulatory frameworks it
+          touches, retrieves the sections that actually apply, and reports what is missing —
+          quoting the regulation behind every finding.
+        </p>
+        <p className="text-[15px] text-fg-muted leading-relaxed mt-5 max-w-2xl">
           The step that matters is the last one. Every quote the model produces is checked against
           the passage it was shown before it reaches you. A finding whose citation cannot be found
-          is labelled unsupported and excluded from the score, rather than being printed in the same
-          typeface as a real one.
+          is labelled <span className="text-unsupported font-medium">unsupported</span> and excluded
+          from the score, rather than printed in the same typeface as a real one.
         </p>
-        <div className="flex flex-wrap gap-3 pt-2">
-          <Link
-            href="/assess"
-            className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-          >
-            Run an assessment
-          </Link>
-          <Link
-            href="/search"
-            className="inline-flex items-center rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted/60 transition-colors"
-          >
+
+        <div className="flex flex-wrap gap-3 mt-9">
+          <ButtonLink href="/assess">Run an assessment</ButtonLink>
+          <ButtonLink href="/search" variant="secondary">
             Try the retrieval playground
-          </Link>
+          </ButtonLink>
         </div>
-        <p className="text-sm text-muted-foreground pt-1">
-          No account, nothing to install. Rate limited, because it spends real money on a real model.
+        <p className="text-[13px] text-fg-faint mt-4">
+          No account, nothing to install. Rate limited, because it spends real money on a real
+          model.
         </p>
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          What is in the index
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <Section
+        title="What is in the index"
+        description={
+          <>
+            {store.meta.frameworks.join(" · ")}. SOC 2 and ISO/IEC 27001 are classified but not
+            retrieved against — their text is copyrighted and cannot be redistributed here, and
+            Verity says so rather than paraphrasing them.
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Stat value={String(store.meta.sectionCount)} label="sections of regulation text" />
-          <Stat value={String(store.meta.chunkCount)} label="retrievable passages" />
+          <Stat value={store.meta.chunkCount.toLocaleString()} label="retrievable passages" />
           <Stat value={String(store.meta.frameworks.length)} label="frameworks with a corpus" />
-          <Stat value={`${store.meta.dimensions}d`} label={store.meta.embeddingModel} />
+          <Stat
+            value={`${store.meta.dimensions}d`}
+            label="embedding dimensions"
+            hint={store.meta.embeddingModel}
+          />
         </div>
-        <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">
-          {store.meta.frameworks.join(" · ")}. SOC 2 and ISO/IEC 27001 are classified but not
-          retrieved against — their text is copyrighted and cannot be redistributed here, and Verity
-          says so rather than paraphrasing them.
-        </p>
-      </section>
+      </Section>
 
       {evaluation && best ? (
-        <section className="space-y-4">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-            Retrieval quality, measured
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Section
+          title="Retrieval quality, measured"
+          description={
+            <>
+              Six configurations compared on the same labelled set, with the one tunable parameter
+              fitted on the development slice alone. The full report includes the configurations
+              that lost, and why.
+            </>
+          }
+        >
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Stat
+              accent
               value={`${(best.test.recallAt["10"] * 100).toFixed(1)}%`}
-              label={`Recall@10 on ${best.test.n} held-out queries (${best.name})`}
+              label="Recall@10, held out"
+              hint={`${best.test.n} queries · ${best.name}`}
             />
-            <Stat value={best.test.mrr.toFixed(3)} label="MRR@10, held-out" />
-            <Stat value={best.test.ndcg.toFixed(3)} label="nDCG@10, held-out" />
+            <Stat value={best.test.mrr.toFixed(3)} label="MRR@10, held out" />
+            <Stat value={best.test.ndcg.toFixed(3)} label="nDCG@10, held out" />
             <Stat
               value={String(evaluation.gold.total)}
-              label={`labelled queries — ${evaluation.gold.dev} dev, ${evaluation.gold.test} test`}
+              label="labelled queries"
+              hint={`${evaluation.gold.dev} dev · ${evaluation.gold.test} test`}
             />
           </div>
-          <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">
-            Several retrieval configurations compared on the same labelled set, with the one tunable
-            parameter fitted on the development slice alone.{" "}
-            <Link href="/evaluation" className="underline underline-offset-4 hover:text-foreground">
-              The full report
-            </Link>{" "}
-            includes the configurations that lost, and why.
-          </p>
-        </section>
+          <ButtonLink href="/evaluation" variant="ghost" size="sm" className="-ml-3">
+            Read the full evaluation →
+          </ButtonLink>
+        </Section>
       ) : null}
 
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          How it works
-        </h2>
-        <ol className="space-y-4 max-w-3xl">
+      <Section title="How a run works">
+        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {STEPS.map((step, i) => (
-            <li key={step.title} className="flex gap-4">
-              <span className="shrink-0 w-7 h-7 rounded-full border border-border/70 grid place-items-center text-xs tabular-nums text-muted-foreground">
-                {i + 1}
-              </span>
-              <div className="space-y-1">
-                <div className="font-medium">{step.title}</div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{step.body}</p>
+            <Card key={step.title} className="p-5" interactive>
+              <div className="flex items-baseline gap-3">
+                <Citation className="tabular-nums">{String(i + 1).padStart(2, "0")}</Citation>
+                <h3 className="font-medium text-[15px]">{step.title}</h3>
               </div>
-            </li>
+              <p className="text-[13px] text-fg-muted leading-relaxed mt-3">{step.body}</p>
+            </Card>
           ))}
         </ol>
-      </section>
+      </Section>
     </div>
   );
 }

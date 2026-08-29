@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Badge, Button, Card, Citation, ErrorNote, Quote, Skeleton } from "@/components/ui";
+
 /**
  * The assessment page.
  *
@@ -78,16 +80,16 @@ interface AssessResponse {
 }
 
 const SEVERITY_STYLE: Record<Finding["severity"], string> = {
-  critical: "border-red-500/50 text-red-400",
-  high: "border-orange-500/50 text-orange-400",
-  medium: "border-amber-500/50 text-amber-400",
-  low: "border-sky-500/50 text-sky-400",
+  critical: "border-[color-mix(in_srgb,var(--unsupported)_40%,transparent)] text-unsupported",
+  high: "border-[color-mix(in_srgb,var(--near)_40%,transparent)] text-near",
+  medium: "border-[color-mix(in_srgb,var(--near)_40%,transparent)] text-near",
+  low: "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-accent",
 };
 
 const VERDICT_STYLE: Record<Grounding["verdict"], string> = {
-  exact: "border-emerald-500/50 text-emerald-400",
-  near: "border-amber-500/50 text-amber-400",
-  unsupported: "border-red-500/60 text-red-400",
+  exact: "border-[color-mix(in_srgb,var(--verified)_35%,transparent)] text-verified",
+  near: "border-[color-mix(in_srgb,var(--near)_40%,transparent)] text-near",
+  unsupported: "border-[color-mix(in_srgb,var(--unsupported)_40%,transparent)] text-unsupported",
 };
 
 function Pill({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -142,7 +144,7 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
     <div className="mx-auto max-w-4xl px-5 py-10 space-y-8">
       <header className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">Assess a document</h1>
-        <p className="text-muted-foreground leading-relaxed">
+        <p className="text-fg-muted leading-relaxed">
           Paste a data management plan, IRB protocol, or privacy policy — or load the sample, which
           is written to contain findable problems. It goes into the box below so you can read it
           first and check every finding against it. A run takes around 30 seconds and makes several
@@ -160,24 +162,16 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
           rows={12}
           placeholder="Paste a document here, or just run the sample below."
           aria-label="Document to assess"
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono leading-relaxed outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-lg border border-line bg-surface px-4 py-3 text-[13px] font-mono leading-relaxed outline-none transition-colors focus:border-accent placeholder:text-fg-faint resize-y"
         />
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => void run(false)}
-            disabled={loading || document.trim().length < 200}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
-          >
+          <Button onClick={() => void run(false)} disabled={loading || document.trim().length < 200}>
             {loading ? "Running…" : "Assess this document"}
-          </button>
-          <button
-            onClick={loadSample}
-            disabled={loading}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-muted/60 disabled:opacity-40"
-          >
+          </Button>
+          <Button onClick={loadSample} disabled={loading} variant="secondary">
             Load the sample document
-          </button>
-          <span className="text-xs text-muted-foreground">
+          </Button>
+          <span className="text-xs text-fg-muted">
             {document.trim().length > 0 && document.trim().length < 200
               ? `${200 - document.trim().length} more characters needed`
               : "Three runs per visitor per hour"}
@@ -185,37 +179,38 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
         </div>
 
         {usingSample && document === sampleDocument ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-fg-muted">
             Sample loaded. Its stated context: {sampleDescription.replace(/\s+/g, " ")}
           </p>
         ) : null}
       </div>
 
       {loading ? (
-        <div className="rounded-md border border-border/60 bg-card/30 px-4 py-6 text-sm text-muted-foreground">
-          Classifying, retrieving regulation text, assessing, then verifying every quote against its
-          source. This is a real pipeline, so it takes real time.
-        </div>
+        <Card className="px-5 py-5 space-y-4">
+          <p className="text-sm text-fg-muted">
+            Classifying, retrieving regulation text, assessing, then verifying every quote against
+            its source. This is a real pipeline, so it takes real time.
+          </p>
+          <div className="space-y-2.5">
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+          </div>
+        </Card>
       ) : null}
 
       {error ? (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm space-y-1"
-        >
-          <p className="font-medium">The assessment did not complete.</p>
-          <p className="text-muted-foreground">{error}</p>
-        </div>
+        <ErrorNote title="The assessment did not complete." detail={error} />
       ) : null}
 
       {data ? (
         <div className="space-y-8">
-          <section className="rounded-lg border border-border/60 bg-card/30 p-4 space-y-3">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          <section className="rounded-lg border border-line bg-surface p-4 space-y-3">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-fg-muted">
               What it read
             </h2>
             <p className="text-sm leading-relaxed">{data.documentSummary}</p>
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground tabular-nums pt-1">
+            <div className="flex flex-wrap gap-4 text-xs text-fg-muted tabular-nums pt-1">
               <span>{(data.trace.totalMs / 1000).toFixed(1)}s total</span>
               <span>
                 {data.trace.totals.inputTokens.toLocaleString()} in /{" "}
@@ -232,7 +227,7 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
               <span>{data.runsRemainingThisHour} runs left this hour</span>
             </div>
             {data.schemaValidation.attempts > 0 ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-fg-muted">
                 Structured output: {data.schemaValidation.firstPassValid} of{" "}
                 {data.schemaValidation.attempts} model calls satisfied their schema first time,
                 {" "}
@@ -243,7 +238,7 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
             ) : null}
             <button
               onClick={() => setShowTrace(!showTrace)}
-              className="text-xs underline underline-offset-4 text-muted-foreground hover:text-foreground"
+              className="text-xs underline underline-offset-4 text-fg-muted hover:text-fg"
               aria-expanded={showTrace}
             >
               {showTrace ? "Hide" : "Show"} the per-stage trace
@@ -251,7 +246,7 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
             {showTrace ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs mt-2">
-                  <thead className="text-muted-foreground">
+                  <thead className="text-fg-muted">
                     <tr className="text-left">
                       <th className="py-1 pr-4 font-medium">Stage</th>
                       <th className="py-1 pr-4 font-medium">Kind</th>
@@ -262,9 +257,9 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
                   </thead>
                   <tbody className="tabular-nums">
                     {data.trace.spans.map((span, i) => (
-                      <tr key={`${span.name}-${i}`} className="border-t border-border/40">
+                      <tr key={`${span.name}-${i}`} className="border-t border-line">
                         <td className="py-1 pr-4 font-mono">{span.name}</td>
-                        <td className="py-1 pr-4 text-muted-foreground">{span.kind}</td>
+                        <td className="py-1 pr-4 text-fg-muted">{span.kind}</td>
                         <td className="py-1 pr-4 text-right">{span.durationMs}</td>
                         <td className="py-1 pr-4 text-right">{span.inputTokens ?? "—"}</td>
                         <td className="py-1 text-right">{span.outputTokens ?? "—"}</td>
@@ -276,8 +271,8 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
             ) : null}
           </section>
 
-          <section className="rounded-lg border border-border/60 bg-card/30 p-4 space-y-2">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          <section className="rounded-lg border border-line bg-surface p-4 space-y-2">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-fg-muted">
               Citation grounding
             </h2>
             <p className="text-sm leading-relaxed">
@@ -305,7 +300,7 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
           </section>
 
           {data.frameworks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-fg-muted">
               The classifier found no applicable framework in this document. That is a result, not
               an error — nothing was invented to fill the page.
             </p>
@@ -313,20 +308,20 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
 
           {data.frameworks.map((framework) => (
             <section key={framework.framework} className="space-y-4">
-              <div className="flex flex-wrap items-baseline gap-3 border-b border-border/60 pb-2">
+              <div className="flex flex-wrap items-baseline gap-3 border-b border-line pb-2">
                 <h2 className="text-xl font-semibold tracking-tight">{framework.framework}</h2>
                 {framework.score !== null ? (
                   <span className="text-lg tabular-nums font-medium">{framework.score}/100</span>
                 ) : null}
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <span className="text-xs text-fg-muted tabular-nums">
                   confidence {(framework.confidence * 100).toFixed(0)}%
                 </span>
               </div>
 
-              <p className="text-sm text-muted-foreground leading-relaxed">{framework.rationale}</p>
+              <p className="text-sm text-fg-muted leading-relaxed">{framework.rationale}</p>
 
               {!framework.hasCorpus ? (
-                <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm">
+                <div className="rounded-md border border-[color-mix(in_srgb,var(--near)_40%,transparent)] bg-[var(--near-soft)] px-4 py-3 text-sm">
                   This framework was detected, but its text is copyrighted and is not in the corpus,
                   so there is nothing to cite. No findings and no score are produced for it — rather
                   than paraphrasing a standard Verity is not allowed to redistribute.
@@ -334,7 +329,7 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
               ) : null}
 
               {framework.concerns.length > 0 ? (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-fg-muted">
                   <span className="uppercase tracking-wider">Retrieved for: </span>
                   {framework.concerns.join(" · ")}
                 </div>
@@ -344,47 +339,56 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
                 <article
                   key={`${framework.framework}-${i}`}
                   className={`rounded-lg border p-4 space-y-3 ${
-                    finding.supported ? "border-border/60 bg-card/30" : "border-red-500/40 bg-red-500/5"
+                    finding.supported ? "border-line bg-surface" : "border-[color-mix(in_srgb,var(--unsupported)_40%,transparent)] bg-[var(--unsupported-soft)]"
                   }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <Pill className={SEVERITY_STYLE[finding.severity]}>{finding.severity}</Pill>
-                    <Pill className="border-border/70 text-muted-foreground">{finding.status}</Pill>
+                    <Pill className="border-line text-fg-muted">{finding.status}</Pill>
                     <Pill className={VERDICT_STYLE[finding.grounding.regulation.verdict]}>
                       citation {finding.grounding.regulation.verdict}
                     </Pill>
-                    <span className="text-xs text-muted-foreground ml-auto">{finding.citation}</span>
+                    <span className="text-xs text-fg-muted ml-auto">{finding.citation}</span>
                   </div>
 
                   <h3 className="font-medium leading-snug">{finding.requirement}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-sm text-fg-muted leading-relaxed">
                     {finding.explanation}
                   </p>
 
                   {finding.documentQuote ? (
-                    <blockquote className="border-l-2 border-border pl-3 text-sm">
-                      <p className="text-muted-foreground italic">“{finding.documentQuote}”</p>
-                      <footer className="text-[11px] text-muted-foreground mt-1">
-                        from your document —{" "}
-                        {finding.grounding.document
-                          ? `${finding.grounding.document.verdict} match`
-                          : "not checked"}
-                      </footer>
-                    </blockquote>
+                    <Quote
+                      tone={finding.grounding.document?.verdict ?? "neutral"}
+                      source={
+                        <>
+                          from your document —{" "}
+                          {finding.grounding.document
+                            ? `${finding.grounding.document.verdict} match`
+                            : "not checked"}
+                        </>
+                      }
+                    >
+                      “{finding.documentQuote}”
+                    </Quote>
                   ) : null}
 
-                  <blockquote className="border-l-2 border-primary/50 pl-3 text-sm">
-                    <p className="text-muted-foreground italic">“{finding.regulationQuote}”</p>
-                    <footer className="text-[11px] text-muted-foreground mt-1">
-                      {finding.citation} — {finding.grounding.regulation.verdict} match
-                      {finding.grounding.regulation.verdict === "near"
-                        ? ` (${(finding.grounding.regulation.similarity * 100).toFixed(0)}% overlap)`
-                        : ""}
-                    </footer>
-                  </blockquote>
+                  <Quote
+                    tone={finding.grounding.regulation.verdict}
+                    source={
+                      <>
+                        <Citation>{finding.citation}</Citation> —{" "}
+                        {finding.grounding.regulation.verdict} match
+                        {finding.grounding.regulation.verdict === "near"
+                          ? ` (${(finding.grounding.regulation.similarity * 100).toFixed(0)}% overlap)`
+                          : ""}
+                      </>
+                    }
+                  >
+                    “{finding.regulationQuote}”
+                  </Quote>
 
                   {!finding.supported ? (
-                    <p className="text-xs text-red-400">
+                    <p className="text-xs text-unsupported">
                       This quote was not found in any passage the model was shown, so this finding
                       is excluded from the score. It is left visible on purpose.
                     </p>
@@ -393,7 +397,7 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
               ))}
 
               {framework.hasCorpus && framework.findings.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-fg-muted">
                   No findings for this framework against the {framework.passages.length} passages
                   retrieved.
                 </p>

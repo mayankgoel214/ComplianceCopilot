@@ -6,7 +6,7 @@ export default function NotFound() {
   return (
     <div className="mx-auto max-w-2xl px-5 py-24 space-y-5">
       <h1 className="text-3xl font-semibold tracking-tight">There is nothing here.</h1>
-      <p className="text-muted-foreground leading-relaxed">
+      <p className="text-fg-muted leading-relaxed">
         That URL does not match anything Verity serves. It has four pages, and they are all
         below.
       </p>
@@ -18,7 +18,7 @@ export default function NotFound() {
           ["/evaluation", "Evaluation — recall@k, MRR and nDCG on a held-out set"],
         ].map(([href, label]) => (
           <li key={href}>
-            <Link href={href} className="underline underline-offset-4 hover:text-foreground">
+            <Link href={href} className="underline underline-offset-4 hover:text-fg">
               {label}
             </Link>
           </li>

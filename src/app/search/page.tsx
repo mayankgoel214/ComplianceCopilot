@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Button, Card, Citation, EmptyState, ErrorNote } from "@/components/ui";
+
 /**
  * The retrieval playground.
  *
@@ -116,7 +118,7 @@ export default function SearchPage() {
     <div className="mx-auto max-w-6xl px-5 py-10 space-y-8">
       <header className="space-y-3 max-w-3xl">
         <h1 className="text-3xl font-semibold tracking-tight">Retrieval playground</h1>
-        <p className="text-muted-foreground leading-relaxed">
+        <p className="text-fg-muted leading-relaxed">
           One query, ranked three ways at once — dense vectors, BM25, and the two fused by
           reciprocal rank fusion. Ask something a compliance officer would ask, then try pasting a
           bare section number and watch which arm survives.
@@ -136,13 +138,13 @@ export default function SearchPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="How quickly must we report a breach to the regulator?"
             aria-label="Search query"
-            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1 h-10 rounded-md border border-line bg-surface px-3.5 text-sm outline-none transition-colors focus:border-accent placeholder:text-fg-faint"
           />
           <select
             value={framework}
             onChange={(e) => setFramework(e.target.value)}
             aria-label="Framework filter"
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="h-10 rounded-md border border-line bg-surface px-3 text-sm outline-none transition-colors focus:border-accent"
           >
             {FRAMEWORKS.map((f) => (
               <option key={f} value={f}>
@@ -150,21 +152,17 @@ export default function SearchPage() {
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
+          <Button type="submit" disabled={loading}>
             {loading ? "Searching…" : "Search"}
-          </button>
+          </Button>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <label className="flex items-center gap-2 text-sm text-fg-muted">
           <input
             type="checkbox"
             checked={withRerank}
             onChange={(e) => setWithRerank(e.target.checked)}
-            className="rounded border-border"
+            className="rounded border-line"
           />
           Add the LLM reranker (slower, and the only arm that costs a generation call)
         </label>
@@ -178,7 +176,7 @@ export default function SearchPage() {
                 setQuery(example);
                 void run(example);
               }}
-              className="text-xs rounded-full border border-border/70 px-3 py-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-left"
+              className="text-[12px] rounded-full border border-line px-3 py-1.5 text-fg-muted hover:text-fg hover:border-line-strong hover:bg-surface-2 transition-colors text-left"
             >
               {example.length > 62 ? `${example.slice(0, 62)}…` : example}
             </button>
@@ -187,19 +185,14 @@ export default function SearchPage() {
       </form>
 
       {error ? (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm"
-        >
-          {error}
-        </div>
+        <ErrorNote title="That search did not run." detail={error} />
       ) : null}
 
       {loading ? (
         <div
           role="status"
           aria-live="polite"
-          className="rounded-md border border-border/60 bg-card/30 px-4 py-3 text-sm text-muted-foreground"
+          className="rounded-md border border-line bg-surface px-4 py-3 text-sm text-fg-muted"
         >
           {withRerank
             ? "Embedding the query, running both arms, then asking the model to rank the fused candidates. The rerank pass is the slow one — around ten seconds."
@@ -209,13 +202,13 @@ export default function SearchPage() {
 
       {data ? (
         <div className={loading ? "opacity-40 transition-opacity" : "transition-opacity"}>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-fg-muted">
             {data.index.chunkCount} passages · {data.index.dimensions}d {data.index.embeddingModel} ·
             BM25 vocabulary {data.index.vocabularySize} · {data.searchesRemainingThisHour} searches
             left this hour
           </p>
           {data.rerankRefused ? (
-            <p className="text-sm text-amber-500 mt-2">{data.rerankRefused}</p>
+            <p className="text-sm text-near mt-2">{data.rerankRefused}</p>
           ) : null}
 
           {/*
@@ -230,23 +223,22 @@ export default function SearchPage() {
             }`}
           >
             {data.arms.map((arm) => (
-              <section
-                key={arm.label}
-                className="rounded-lg border border-border/60 bg-card/30 overflow-hidden"
-              >
-                <header className="px-4 py-3 border-b border-border/60">
+              <Card key={arm.label} className="overflow-hidden p-0">
+                <header className="px-4 py-3 border-b border-line">
                   <h2 className="font-medium text-sm">{arm.label}</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                  <p className="text-xs text-fg-muted mt-0.5 tabular-nums">
                     {timingLabel(arm)}
                   </p>
                 </header>
                 {arm.results.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-muted-foreground">
-                    Nothing matched. For BM25 that means none of the query terms appear anywhere in
-                    the corpus, which is exactly the failure mode dense retrieval does not have.
-                  </p>
+                  <div className="p-4">
+                    <EmptyState
+                      title="Nothing matched"
+                      description="For BM25 that means none of the query terms appear anywhere in the corpus — exactly the failure mode dense retrieval does not have."
+                    />
+                  </div>
                 ) : (
-                  <ol className="divide-y divide-border/50">
+                  <ol className="divide-y divide-line">
                     {arm.results.map((hit) => {
                       const key = `${arm.label}:${hit.id}`;
                       const isOpen = expanded === key;
@@ -259,39 +251,39 @@ export default function SearchPage() {
                             aria-expanded={isOpen}
                           >
                             <div className="flex gap-2 items-baseline">
-                              <span className="text-xs tabular-nums text-muted-foreground shrink-0 w-5">
+                              <span className="text-xs tabular-nums text-fg-muted shrink-0 w-5">
                                 {hit.rank}
                               </span>
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium truncate group-hover:text-foreground">
+                                <div className="text-sm font-medium truncate group-hover:text-fg">
                                   {hit.heading}
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                                <Citation className="block mt-1 truncate">
                                   {hit.citation}
-                                </div>
+                                </Citation>
                               </div>
-                              <span className="text-xs tabular-nums text-muted-foreground shrink-0">
+                              <span className="font-mono text-[11.5px] tabular-nums text-fg-faint shrink-0">
                                 {hit.score.toFixed(3)}
                               </span>
                             </div>
                           </button>
                           {hit.provenance &&
                           (hit.provenance.denseRank || hit.provenance.bm25Rank) ? (
-                            <p className="text-[11px] text-muted-foreground mt-1 pl-7">
+                            <p className="text-[11px] text-fg-muted mt-1 pl-7">
                               dense {hit.provenance.denseRank ?? "—"} · bm25{" "}
                               {hit.provenance.bm25Rank ?? "—"}
                             </p>
                           ) : null}
                           {isOpen ? (
                             <div className="mt-2 pl-7 space-y-2">
-                              <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                              <p className="text-xs leading-relaxed text-fg-muted whitespace-pre-wrap">
                                 {hit.text}
                               </p>
                               <a
                                 href={hit.sourceUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-xs underline underline-offset-4 hover:text-foreground"
+                                className="text-xs underline underline-offset-4 hover:text-fg"
                               >
                                 Read the source
                               </a>
@@ -302,7 +294,7 @@ export default function SearchPage() {
                     })}
                   </ol>
                 )}
-              </section>
+              </Card>
             ))}
           </div>
         </div>

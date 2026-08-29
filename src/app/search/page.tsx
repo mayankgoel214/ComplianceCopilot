@@ -89,7 +89,9 @@ export default function SearchPage() {
     }
     setLoading(true);
     setError(null);
-    setData(null);
+    // The previous results deliberately stay on screen. Clearing them here left
+    // the page blank for as long as the request took — twelve seconds with the
+    // reranker on — which reads as a broken page rather than a slow one.
     try {
       const response = await fetch("/api/search", {
         method: "POST",
@@ -101,6 +103,7 @@ export default function SearchPage() {
         setError(body.error ?? `Request failed with ${response.status}.`);
         return;
       }
+      setExpanded(null);
       setData(body);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The request failed.");
@@ -192,18 +195,30 @@ export default function SearchPage() {
         </div>
       ) : null}
 
+      {loading ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-md border border-border/60 bg-card/30 px-4 py-3 text-sm text-muted-foreground"
+        >
+          {withRerank
+            ? "Embedding the query, running both arms, then asking the model to rank the fused candidates. The rerank pass is the slow one — around ten seconds."
+            : "Embedding the query and running all three arms."}
+        </div>
+      ) : null}
+
       {data ? (
-        <>
+        <div className={loading ? "opacity-40 transition-opacity" : "transition-opacity"}>
           <p className="text-xs text-muted-foreground">
             {data.index.chunkCount} passages · {data.index.dimensions}d {data.index.embeddingModel} ·
             BM25 vocabulary {data.index.vocabularySize} · {data.searchesRemainingThisHour} searches
             left this hour
           </p>
           {data.rerankRefused ? (
-            <p className="text-sm text-amber-500">{data.rerankRefused}</p>
+            <p className="text-sm text-amber-500 mt-2">{data.rerankRefused}</p>
           ) : null}
 
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 items-start">
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 items-start mt-4">
             {data.arms.map((arm) => (
               <section
                 key={arm.label}
@@ -280,7 +295,7 @@ export default function SearchPage() {
               </section>
             ))}
           </div>
-        </>
+        </div>
       ) : null}
     </div>
   );

@@ -48,6 +48,22 @@ test.describe("navigation and static pages", () => {
 });
 
 test.describe("retrieval playground", () => {
+  test("keeps the previous results on screen while a new search runs", async ({ page }) => {
+    await page.goto("/search");
+    await page.getByLabel("Search query").fill("breach notification deadline");
+    await page.getByRole("button", { name: "Search" }).click();
+    await expect(page.getByRole("heading", { name: "Dense", exact: true })).toBeVisible({
+      timeout: 45_000,
+    });
+
+    // A second search must not blank the page: the results stay, dimmed, and a
+    // status line explains the wait.
+    await page.getByLabel("Search query").fill("data protection impact assessment");
+    await page.getByRole("button", { name: "Search" }).click();
+    await expect(page.getByRole("status")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dense", exact: true })).toBeVisible();
+  });
+
   test("returns three ranked arms for a natural-language query", async ({ page }) => {
     await page.goto("/search");
     await page.getByLabel("Search query").fill("How quickly must we report a breach to the regulator?");
@@ -108,10 +124,26 @@ test.describe("assessment", () => {
     expect(response.status()).toBe(400);
   });
 
+  test("loads the sample into the box so a reader can check the findings against it", async ({
+    page,
+  }) => {
+    await page.goto("/assess");
+    const box = page.getByLabel("Document to assess");
+    await expect(box).toHaveValue("");
+
+    await page.getByRole("button", { name: /load the sample document/i }).click();
+    // The claim of this page is that findings are checkable against the input,
+    // which requires the input to be on screen.
+    await expect(box).not.toHaveValue("");
+    expect((await box.inputValue()).length).toBeGreaterThan(500);
+    await expect(page.getByRole("button", { name: /assess this document/i })).toBeEnabled();
+  });
+
   test("runs the sample end to end and grounds every citation it reports", async ({ page }) => {
     test.setTimeout(180_000);
     await page.goto("/assess");
-    await page.getByRole("button", { name: /run the sample/i }).click();
+    await page.getByRole("button", { name: /load the sample document/i }).click();
+    await page.getByRole("button", { name: /assess this document/i }).click();
 
     await expect(page.getByRole("heading", { name: /what it read/i })).toBeVisible({
       timeout: 150_000,

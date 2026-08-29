@@ -1,0 +1,14 @@
+# gitleaks configuration.
+#
+# The findings in this repository's history are real and are documented in
+# SECURITY.md; they are remediated by rotation, not by suppression, and nothing
+# here hides them. This file exists only to stop the scanner flagging fixtures.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "curl-auth-header"
+description = "curl auth header"
+regex = '''curl\s+.*-H\s+['"]?[Aa]uthorization:\s+(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}'''
+[rules.allowlist]
+paths = ['''(^|/)(e2e|__tests__)/''']

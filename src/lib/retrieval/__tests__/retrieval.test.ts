@@ -121,6 +121,33 @@ describe("DenseIndex", () => {
     const results = index.search(Float32Array.from([1, 0]), 3, (c) => c.id !== "a");
     expect(results.map((r) => r.chunk.id)).toEqual(["c", "b"]);
   });
+
+  it("scores a query as cosine similarity even when the query is not unit length", () => {
+    // Gemini does not return unit-length query vectors — measured, about 0.59 —
+    // while the corpus vectors are normalised at build time. Without
+    // normalising the query the dot product is |q| times the cosine, which is
+    // what the retrieval playground used to display.
+    const unit = index.search(Float32Array.from([1, 0]), 1)[0];
+    const scaled = index.search(Float32Array.from([0.593, 0]), 1)[0];
+
+    expect(scaled.chunk.id).toBe(unit.chunk.id);
+    expect(scaled.score).toBeCloseTo(unit.score, 6);
+    expect(scaled.score).toBeCloseTo(1, 6);
+  });
+
+  it("ranks identically whether or not the query is normalised", () => {
+    // The corollary, and the reason the evaluation numbers did not move when
+    // the normalisation was added: scaling by a positive constant preserves
+    // order.
+    const a = index.search(Float32Array.from([0.8, 0.6]), 3).map((r) => r.chunk.id);
+    const b = index.search(Float32Array.from([0.08, 0.06]), 3).map((r) => r.chunk.id);
+    expect(a).toEqual(b);
+  });
+
+  it("does not turn a zero query into NaN scores", () => {
+    const results = index.search(new Float32Array([0, 0]), 3);
+    expect(results.every((r) => Number.isFinite(r.score))).toBe(true);
+  });
 });
 
 describe("int8 quantization", () => {

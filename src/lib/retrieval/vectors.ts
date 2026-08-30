@@ -32,12 +32,27 @@ export class DenseIndex {
       );
     }
 
+    // The query is normalised here, and it was not before.
+    //
+    // The corpus vectors are unit length — the build does that explicitly — so
+    // a plain dot product against a unit query is the cosine similarity. But
+    // Gemini does not return unit vectors for queries: measured, a query
+    // embedding has a norm of about 0.59. The dot product was therefore
+    // |q| times the cosine, and every score shown on the retrieval playground
+    // was a constant factor too small.
+    //
+    // Ranking was never affected — scaling by a positive constant preserves
+    // order — so the evaluation numbers were and remain correct. It was the
+    // displayed number that was wrong, and it was wrong next to a pgvector path
+    // that computes true cosine, which is how it was caught.
+    const query = normalise(queryVector);
+
     const scored: Array<{ index: number; score: number }> = [];
     for (let i = 0; i < this.count; i++) {
       if (allowed && !allowed(this.chunks[i])) continue;
       const offset = i * this.dimensions;
       let dot = 0;
-      for (let d = 0; d < this.dimensions; d++) dot += this.matrix[offset + d] * queryVector[d];
+      for (let d = 0; d < this.dimensions; d++) dot += this.matrix[offset + d] * query[d];
       scored.push({ index: i, score: dot });
     }
 
@@ -46,6 +61,25 @@ export class DenseIndex {
       .slice(0, topK)
       .map(({ index, score }, i) => ({ chunk: this.chunks[index], score, rank: i + 1 }));
   }
+}
+
+/**
+ * Returns a unit-length copy, or the input when it already is one.
+ *
+ * A zero vector cannot be normalised and is returned untouched rather than
+ * turned into NaNs — the embedding service rejects them, and a silently
+ * NaN-filled query is the kind of failure that looks like bad retrieval rather
+ * than like a bug.
+ */
+function normalise(vector: Float32Array): Float32Array {
+  let sum = 0;
+  for (let i = 0; i < vector.length; i++) sum += vector[i] * vector[i];
+  const norm = Math.sqrt(sum);
+  if (!Number.isFinite(norm) || norm === 0 || Math.abs(norm - 1) < 1e-6) return vector;
+
+  const out = new Float32Array(vector.length);
+  for (let i = 0; i < vector.length; i++) out[i] = vector[i] / norm;
+  return out;
 }
 
 /**

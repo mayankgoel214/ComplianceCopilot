@@ -60,7 +60,11 @@
 
   --fg: #e9ecf1;
   --fg-muted: #9aa2b0;
-  --fg-faint: #6a7280;
+  /* Chosen to clear WCAG AA (4.5:1) against the darkest surface it renders on,
+     which is --elevated rather than --bg. The value before this was #6a7280:
+     4.11 against the page and 3.96 against a card, so every small caption and
+     section label on the site failed contrast. */
+  --fg-faint: #7e8690;
 
   --accent: #6aa5ff;
   --accent-fg: #06080c;
@@ -95,17 +99,29 @@
 
   --fg: #10131a;
   --fg-muted: #59616e;
-  --fg-faint: #8b93a1;
+  /* Same rule, worst case here being --surface-2. The value before this was
+     #8b93a1, at 2.99 against the page — the light theme failed harder than the
+     dark one. */
+  --fg-faint: #69717b;
 
-  --accent: #2563eb;
+  /* Each of these is darkened until it clears 4.5:1 against its *own* tinted
+     background, which is the case that matters: a badge draws its text in the
+     semantic colour on a wash of the same colour, so the two are closer than
+     either is to the page. Measured on the first pass, all four failed there —
+     verified at 3.51, near at 3.79, unsupported at 4.33, accent at 4.49 — while
+     every one of them passed against the plain background. The dark theme's
+     equivalents were already fine, the worst being 5.11.
+     Foreground names below are the badge and score colours; the darkening is
+     small enough that nothing reads as a different hue. */
+  --accent: #2461e6;
   --accent-fg: #ffffff;
   --accent-soft: rgba(37, 99, 235, 0.08);
 
-  --verified: #0f8f5f;
+  --verified: #0d7b52;
   --verified-soft: rgba(15, 143, 95, 0.1);
-  --near: #a86a06;
+  --near: #975f05;
   --near-soft: rgba(168, 106, 6, 0.1);
-  --unsupported: #c93838;
+  --unsupported: #c13636;
   --unsupported-soft: rgba(201, 56, 56, 0.09);
 
   --shadow-sm: 0 1px 2px rgba(16, 19, 26, 0.06);

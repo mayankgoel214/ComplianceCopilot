@@ -140,14 +140,18 @@ export default async function HomePage() {
 
       <Section title="How a run works">
         <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Each step is an <li>, because an <ol> may only contain list items
+              — the Cards were direct children and axe was right to say so. */}
           {STEPS.map((step, i) => (
-            <Card key={step.title} className="p-5" interactive>
-              <div className="flex items-baseline gap-3">
-                <Citation className="tabular-nums">{String(i + 1).padStart(2, "0")}</Citation>
-                <h3 className="font-medium text-[15px]">{step.title}</h3>
-              </div>
-              <p className="text-[13px] text-fg-muted leading-relaxed mt-3">{step.body}</p>
-            </Card>
+            <li key={step.title}>
+              <Card className="p-5 h-full" interactive>
+                <div className="flex items-baseline gap-3">
+                  <Citation className="tabular-nums">{String(i + 1).padStart(2, "0")}</Citation>
+                  <h3 className="font-medium text-[15px]">{step.title}</h3>
+                </div>
+                <p className="text-[13px] text-fg-muted leading-relaxed mt-3">{step.body}</p>
+              </Card>
+            </li>
           ))}
         </ol>
       </Section>

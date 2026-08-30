@@ -1,4 +1,4 @@
-import { Badge, Card, Citation, Quote, Section } from "@/components/ui";
+import { Badge, Card, Citation, Quote, Section, ScrollableTable } from "@/components/ui";
 
 /**
  * The rendering of an assessment.
@@ -230,7 +230,7 @@ export function FrameworkSection({ assessment }: { assessment: FrameworkAssessme
 
 export function TraceTable({ trace }: { trace: ReportResult["trace"] }) {
   return (
-    <div className="overflow-x-auto">
+    <ScrollableTable label="Per-stage timing and token trace">
       <table className="w-full text-xs">
         <thead className="text-fg-faint">
           <tr className="text-left">
@@ -253,7 +253,7 @@ export function TraceTable({ trace }: { trace: ReportResult["trace"] }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollableTable>
   );
 }
 

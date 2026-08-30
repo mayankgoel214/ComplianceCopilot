@@ -267,3 +267,36 @@ export function ErrorNote({
     </div>
   );
 }
+
+/**
+ * A table that may be wider than its column, wrapped so a keyboard can reach it.
+ *
+ * A `div` with `overflow-x: auto` scrolls with a trackpad and is unreachable
+ * without one: it takes no focus, so Tab skips it and the arrow keys never
+ * apply. On a phone the evaluation tables overflow and four of these appeared
+ * at once — axe reports it as `scrollable-region-focusable`, and it is a real
+ * dead end rather than a technicality, because the columns hidden to the right
+ * are the measurements the page exists to show.
+ *
+ * `tabIndex={0}` makes the region focusable, which is what makes the arrow keys
+ * scroll it. The label matters as much: a focus stop that announces nothing is
+ * its own small failure.
+ */
+export function ScrollableTable({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      role="region"
+      aria-label={label}
+      tabIndex={0}
+      className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-sm"
+    >
+      {children}
+    </div>
+  );
+}

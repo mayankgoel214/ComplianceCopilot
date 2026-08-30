@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ScrollableTable } from "@/components/ui";
 
 import { QualityAgainstLatency, RecallCurve, type ConfigPoint } from "./charts";
 import { readFile } from "node:fs/promises";
@@ -83,7 +84,7 @@ function MetricsTable({
   const best = rows.reduce((a, b) => (b[slice]!.ndcg > a[slice]!.ndcg ? b : a));
 
   return (
-    <div className="overflow-x-auto">
+    <ScrollableTable label={`Retrieval configurations compared on the ${slice} slice`}>
       <table className="w-full text-sm">
         <thead className="text-fg-muted text-xs uppercase tracking-wider">
           <tr className="text-left border-b border-line">
@@ -122,7 +123,7 @@ function MetricsTable({
           })}
         </tbody>
       </table>
-    </div>
+    </ScrollableTable>
   );
 }
 
@@ -276,7 +277,7 @@ export default async function EvaluationPage() {
             by the same harness on the same {chunking.slice} slice. Dense retrieval, reranker off,
             because the reranker sits downstream of what the chunking makes retrievable.
           </p>
-          <div className="overflow-x-auto">
+          <ScrollableTable label="Chunk size sweep results">
             <table className="w-full text-sm">
               <thead className="text-fg-muted text-xs uppercase tracking-wider">
                 <tr className="text-left border-b border-line">
@@ -309,7 +310,7 @@ export default async function EvaluationPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
           <p className="text-sm text-fg-muted leading-relaxed">
             The result is a null one, and the shipped configuration is deliberately left alone.
             nDCG@10 moves across a range smaller than {results.gold.test} queries can resolve. What

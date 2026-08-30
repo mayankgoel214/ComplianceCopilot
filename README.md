@@ -9,9 +9,9 @@ real before you see it**.
 
 Live, no account needed: **https://verity-compliance.vercel.app**
 
-- `/assess` — paste a document, or run the sample, and get findings with verified citations
+- `/assess` — paste, upload a PDF or Word file, or run the sample. Findings stream in stage by stage, each quoting the regulation behind it, and the result gets a permalink and a Markdown export
 - `/search` — one query ranked three ways at once, so you can disagree with the evaluation
-- `/evaluation` — recall@k, MRR and nDCG on a held-out labelled set, including the configurations that lost
+- `/evaluation` — recall@k, MRR and nDCG on a held-out labelled set, with charts, including the configurations that lost
 
 An 84-second walkthrough recorded against the live site is at
 [`docs/verity-demo.mp4`](docs/verity-demo.mp4). It is produced by
@@ -76,6 +76,12 @@ millisecond, which is stated as a tradeoff rather than buried.
 classify → decompose into probes → retrieve → assess → verify → score
 ```
 
+The pipeline is an async generator and the route streams its events as
+newline-delimited JSON, so the page shows each stage ticking over rather than a
+spinner over a blank panel. The first framework reaches the screen at around
+twenty seconds; everything is done by thirty. NDJSON rather than Server-Sent
+Events, because this is a POST with a body and `EventSource` cannot send one.
+
 1. **Classify** — one call decides which of eight frameworks the document
    touches, and must say what in the document triggered each one.
 2. **Decompose** — the same call emits short *concerns*: the specific things in
@@ -91,9 +97,22 @@ classify → decompose into probes → retrieve → assess → verify → score
    the model. A reader who disagrees with the score can point at the finding
    that caused it.
 
-Frameworks are assessed concurrently. A sample run is about 25 seconds and
+Frameworks are assessed concurrently. A sample run is about 30 seconds and
 roughly $0.008 in generation at published rates; the response carries a
 per-stage trace with timings and token counts, and the page will show it to you.
+
+Every run is saved and gets a permalink at `/r/<id>`, so a result survives a
+refresh and can be sent to someone. Ids are random rather than sequential —
+these are shared by link, and a sequential id would let anyone walk every
+document ever submitted — and rows expire after thirty days, swept on write. The
+submitted document is stored with the report, because a finding you cannot check
+against its source is the thing this project exists not to produce.
+
+An identical document returns its stored result in about a tenth of a second
+instead of thirty, spending neither money nor one of the visitor's three runs.
+The sample is deliberately exempt: it is the document most people run, and a
+cache hit has no stages, so caching it would have removed the only thing worth
+watching.
 
 ## The corpus
 
@@ -137,6 +156,9 @@ npm run test:db                   # starts Postgres+pgvector in Docker, runs the
 npm run corpus:fetch              # rebuild corpus/ from the source regulations
 npm run index:build               # re-chunk and re-embed into data/
 npm run eval                      # regenerate docs/retrieval-eval.md and eval/results.json
+npm run eval:chunking             # sweep chunk sizes, write docs/chunking-experiment.md
+npm run db:migrate                # apply src/lib/db/schema.sql
+npm run corpus:push               # copy data/ into Postgres for the pgvector path
 ```
 
 `npm run index:build` takes `--target-tokens` and `--overlap-tokens`, so a
@@ -155,13 +177,39 @@ is not where the quality is. Reranking is.
 
 ## Design notes
 
-**No vector database.** The corpus is around a thousand passages. An exhaustive
-scan of a flat `Float32Array` answers in single-digit milliseconds, so an
-approximate index would buy a recall loss and a dependency to solve a problem
-this corpus does not have. `src/lib/retrieval/pgvector-store.ts` is the backend
-for a corpus that outgrows this one — and it is exercised against a real
-Postgres in Docker, not a mock, because this project once shipped a ChromaDB
-client pointed at a `localhost` that production never had.
+**No vector database in the request path.** The corpus is around a thousand
+passages. An exhaustive scan of a flat `Float32Array` answers in single-digit
+milliseconds, so an approximate index would buy a recall loss and a dependency
+to solve a problem this corpus does not have.
+
+Postgres and pgvector are still here, and populated: `npm run corpus:push`
+writes all 1,147 chunks into Neon behind an HNSW index, from the same artifact
+the application serves so the two cannot disagree about what the corpus
+contains. That is the scale-out path for a corpus too large to hold in a lambda,
+and populating it is the point — this project once shipped a ChromaDB client
+pointed at a `localhost` production never had, and the lesson was that a
+persistence layer nobody has run is not a persistence layer.
+
+**LangChain, where it earns its place.** Prompts are `ChatPromptTemplate`, the
+stages compose with LCEL, and structured output is `withStructuredOutput` over
+the same zod schemas — which replaced a hand-rolled parse-and-repair loop with
+the provider's own constrained decoding. `VerityRetriever` implements
+`BaseRetriever` over the existing store, so a chain and `eval/run-eval.mts` rank
+through one implementation rather than two that drift.
+
+Embeddings deliberately do not go through it. `GoogleGenerativeAIEmbeddings`
+accepts an `outputDimensionality` option and does not send it, so every vector
+came back at the model's native 3072 dimensions instead of the 768 this index is
+built on — silently, because the option is accepted rather than rejected.
+
+**Rate limiting that holds.** The first version kept its state in a
+module-level `Map`, so it reset on every cold start and was per-instance
+besides: a visitor who kept asking simply got a fresh allowance from whichever
+lambda answered. It is a fixed window in Upstash Redis now, namespaced by
+environment so a test run or a preview deployment cannot drain the budget the
+public deployment is meant to have. When Redis is unreachable the in-memory
+limiter takes over — a deliberate fail-open, because refusing every visitor
+because a cache is down is worse than a weakened ceiling.
 
 **768 dimensions, on purpose.** `gemini-embedding-001` is natively 3072 and
 accepts `outputDimensionality`. The LangChain wrapper accepts that option and
@@ -184,13 +232,23 @@ attempt on failure, then a hard error.
 
 ## Stack
 
-Next.js 15 (App Router, RSC) · TypeScript strict · Tailwind · Gemini
-(`gemini-3.6-flash`, `gemini-embedding-001`) · zod · Jest · Playwright ·
-Postgres + pgvector via Docker · Vercel.
+Next.js 15 (App Router, RSC, streaming) · TypeScript strict · Tailwind 4 ·
+LangChain (LCEL, `BaseRetriever`, structured output) · Gemini
+(`gemini-3.6-flash`, `gemini-embedding-001`) · Postgres + pgvector on Neon ·
+Upstash Redis · Sentry · zod · Recharts · pdf-parse · mammoth · Jest ·
+Playwright · Docker · GitHub Actions · Vercel.
 
 Retrieval — BM25, cosine over a flat vector matrix, int8 quantization,
 reciprocal rank fusion, and an LLM listwise reranker — is implemented in this
 repository rather than imported.
+
+## What it needs
+
+One key, `GOOGLE_GEMINI_API_KEY`. Everything else is optional and the app says
+so rather than failing: without `DATABASE_URL` a run still works but is not
+saved, without Upstash the rate limiter falls back to per-instance, and without
+a Sentry DSN nothing is reported. `/search` and `/evaluation` need no
+configuration at all — the index is committed.
 
 ## What this is not
 

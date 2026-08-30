@@ -2,16 +2,8 @@
 
 import { useState } from "react";
 
-import {
-  Badge,
-  Button,
-  buttonClass,
-  Card,
-  Citation,
-  ErrorNote,
-  Quote,
-  Skeleton,
-} from "@/components/ui";
+import { Button, ButtonLink, buttonClass, Card, ErrorNote, Skeleton } from "@/components/ui";
+import { ReportBody, TraceTable, type ReportResult } from "@/components/report-view";
 
 /**
  * The assessment page.
@@ -77,10 +69,18 @@ interface StageEvent {
 
 type StreamEvent =
   | StageEvent
-  | { type: "meta"; usedSample: boolean; runsRemainingThisHour: number }
+  | {
+      type: "meta";
+      usedSample: boolean;
+      cached?: boolean;
+      reportId?: string | null;
+      assessedAt?: string;
+      runsRemainingThisHour?: number;
+      rateLimitDistributed?: boolean;
+    }
   | { type: "classified"; documentSummary: string; frameworks: string[] }
   | { type: "framework"; assessment: FrameworkAssessment }
-  | { type: "done"; result: AssessResponse }
+  | { type: "done"; result: AssessResponse; reportId?: string | null; expiresAt?: string | null }
   | { type: "error"; message: string };
 
 interface AssessResponse {
@@ -104,19 +104,6 @@ interface AssessResponse {
   error?: string;
 }
 
-/**
- * Severity maps onto the verdict palette rather than introducing a fourth set
- * of colours: critical and high read as unsupported-red, medium as near-amber,
- * low as neutral. A page has room for one colour language, and this one already
- * means something here.
- */
-const SEVERITY_TONE: Record<Finding["severity"], "unsupported" | "near" | "neutral"> = {
-  critical: "unsupported",
-  high: "unsupported",
-  medium: "near",
-  low: "neutral",
-};
-
 export default function AssessClient({ sampleDocument, sampleDescription }: AssessClientProps) {
   const [document, setDocument] = useState("");
   const [usingSample, setUsingSample] = useState(false);
@@ -130,6 +117,8 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
   const [upload, setUpload] = useState<{ filename: string; note: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [reusedFrom, setReusedFrom] = useState<string | null>(null);
 
   async function handleFile(file: File) {
     setUploading(true);
@@ -192,6 +181,8 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
     setStages([]);
     setPartial([]);
     setSummary(null);
+    setReportId(null);
+    setReusedFrom(null);
 
     try {
       const response = await fetch("/api/assess", {
@@ -256,6 +247,13 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
         break;
       case "done":
         setData(event.result);
+        if (event.reportId) setReportId(event.reportId);
+        break;
+      case "meta":
+        if (event.cached && event.reportId) {
+          setReportId(event.reportId);
+          setReusedFrom(event.assessedAt ?? null);
+        }
         break;
       case "error":
         setError(event.message);
@@ -416,28 +414,58 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
       ) : null}
 
       {data ? (
-        <div className="space-y-8">
-          <section className="rounded-lg border border-line bg-surface p-4 space-y-3">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-fg-muted">
-              What it read
-            </h2>
-            <p className="text-sm leading-relaxed">{data.documentSummary}</p>
-            <div className="flex flex-wrap gap-4 text-xs text-fg-muted tabular-nums pt-1">
-              <span>{(data.trace.totalMs / 1000).toFixed(1)}s total</span>
-              <span>
-                {data.trace.totals.inputTokens.toLocaleString()} in /{" "}
-                {data.trace.totals.outputTokens.toLocaleString()} out tokens
-              </span>
-              <span>
-                {data.trace.totals.estimatedCostUsd !== null
-                  ? `$${data.trace.totals.estimatedCostUsd.toFixed(4)} in generation at published rates`
-                  : "generation cost not attributable — a call reported no usage"}
-                {data.trace.totals.unpricedEmbeddingCalls > 0
-                  ? `, plus ${data.trace.totals.unpricedEmbeddingCalls} embedding calls the API does not meter`
-                  : ""}
-              </span>
-              <span>{data.runsRemainingThisHour} runs left this hour</span>
+        <div className="space-y-8 animate-rise">
+          {/* The share and export affordances sit above the findings, because
+              the moment a reader wants them is the moment they realise the
+              result is worth keeping — which is before they have scrolled. */}
+          <Card className="p-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <div className="text-[13px] text-fg-muted space-y-1 min-w-0">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+                <span>{(data.trace.totalMs / 1000).toFixed(1)}s</span>
+                <span>
+                  {data.trace.totals.inputTokens.toLocaleString()} in /{" "}
+                  {data.trace.totals.outputTokens.toLocaleString()} out
+                </span>
+                <span>
+                  {data.trace.totals.estimatedCostUsd !== null
+                    ? `$${data.trace.totals.estimatedCostUsd.toFixed(4)} in generation`
+                    : "cost not attributable"}
+                </span>
+              </div>
+              {reusedFrom ? (
+                <p className="text-fg-faint">
+                  This document had already been assessed, so the stored result was reused rather
+                  than spending another run. The model is not deterministic, so a fresh run could
+                  differ.
+                </p>
+              ) : null}
             </div>
+
+            <div className="flex flex-wrap gap-2 ml-auto">
+              {reportId ? (
+                <>
+                  <ButtonLink href={`/r/${reportId}`} variant="secondary" size="sm">
+                    Permalink
+                  </ButtonLink>
+                  <ButtonLink
+                    href={`/api/report/${reportId}/export`}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Download Markdown
+                  </ButtonLink>
+                </>
+              ) : (
+                <span className="text-[12px] text-fg-faint">
+                  Not saved — no database is configured, so this result lives only on this page.
+                </span>
+              )}
+            </div>
+          </Card>
+
+          <ReportBody result={data as unknown as ReportResult} />
+
+          <Card className="p-4 space-y-3">
             <button
               onClick={() => setShowTrace(!showTrace)}
               className="text-xs underline underline-offset-4 text-fg-muted hover:text-fg"
@@ -445,167 +473,8 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
             >
               {showTrace ? "Hide" : "Show"} the per-stage trace
             </button>
-            {showTrace ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs mt-2">
-                  <thead className="text-fg-muted">
-                    <tr className="text-left">
-                      <th className="py-1 pr-4 font-medium">Stage</th>
-                      <th className="py-1 pr-4 font-medium">Kind</th>
-                      <th className="py-1 pr-4 font-medium text-right">ms</th>
-                      <th className="py-1 pr-4 font-medium text-right">in</th>
-                      <th className="py-1 font-medium text-right">out</th>
-                    </tr>
-                  </thead>
-                  <tbody className="tabular-nums">
-                    {data.trace.spans.map((span, i) => (
-                      <tr key={`${span.name}-${i}`} className="border-t border-line">
-                        <td className="py-1 pr-4 font-mono">{span.name}</td>
-                        <td className="py-1 pr-4 text-fg-muted">{span.kind}</td>
-                        <td className="py-1 pr-4 text-right">{span.durationMs}</td>
-                        <td className="py-1 pr-4 text-right">{span.inputTokens ?? "—"}</td>
-                        <td className="py-1 text-right">{span.outputTokens ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-          </section>
-
-          <section className="rounded-lg border border-line bg-surface p-4 space-y-2">
-            <h2 className="text-sm font-medium uppercase tracking-wider text-fg-muted">
-              Citation grounding
-            </h2>
-            <p className="text-sm leading-relaxed">
-              {data.grounding.totalFindings === 0 ? (
-                "No findings were produced, so there was nothing to verify."
-              ) : (
-                <>
-                  <span className="tabular-nums font-medium">
-                    {data.grounding.supported} of {data.grounding.totalFindings}
-                  </span>{" "}
-                  findings quoted regulation text that was actually found in the passages the model
-                  was shown ({(data.grounding.groundedRate * 100).toFixed(0)}%).
-                  {data.grounding.unsupported > 0 ? (
-                    <>
-                      {" "}
-                      The other {data.grounding.unsupported} cited text that could not be located —
-                      those are marked below and excluded from every score.
-                    </>
-                  ) : (
-                    " Nothing was cited that could not be located."
-                  )}
-                </>
-              )}
-            </p>
-          </section>
-
-          {data.frameworks.length === 0 ? (
-            <p className="text-sm text-fg-muted">
-              The classifier found no applicable framework in this document. That is a result, not
-              an error — nothing was invented to fill the page.
-            </p>
-          ) : null}
-
-          {data.frameworks.map((framework) => (
-            <section key={framework.framework} className="space-y-4">
-              <div className="flex flex-wrap items-baseline gap-3 border-b border-line pb-2">
-                <h2 className="text-xl font-semibold tracking-tight">{framework.framework}</h2>
-                {framework.score !== null ? (
-                  <span className="text-lg tabular-nums font-medium">{framework.score}/100</span>
-                ) : null}
-                <span className="text-xs text-fg-muted tabular-nums">
-                  confidence {(framework.confidence * 100).toFixed(0)}%
-                </span>
-              </div>
-
-              <p className="text-sm text-fg-muted leading-relaxed">{framework.rationale}</p>
-
-              {!framework.hasCorpus ? (
-                <div className="rounded-md border border-[color-mix(in_srgb,var(--near)_40%,transparent)] bg-[var(--near-soft)] px-4 py-3 text-sm">
-                  This framework was detected, but its text is copyrighted and is not in the corpus,
-                  so there is nothing to cite. No findings and no score are produced for it — rather
-                  than paraphrasing a standard Verity is not allowed to redistribute.
-                </div>
-              ) : null}
-
-              {framework.concerns.length > 0 ? (
-                <div className="text-xs text-fg-muted">
-                  <span className="uppercase tracking-wider">Retrieved for: </span>
-                  {framework.concerns.join(" · ")}
-                </div>
-              ) : null}
-
-              {framework.findings.map((finding, i) => (
-                <article
-                  key={`${framework.framework}-${i}`}
-                  className={`rounded-lg border p-4 space-y-3 ${
-                    finding.supported ? "border-line bg-surface" : "border-[color-mix(in_srgb,var(--unsupported)_40%,transparent)] bg-[var(--unsupported-soft)]"
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={SEVERITY_TONE[finding.severity]}>{finding.severity}</Badge>
-                    <Badge>{finding.status}</Badge>
-                    <Badge tone={finding.grounding.regulation.verdict}>
-                      citation {finding.grounding.regulation.verdict}
-                    </Badge>
-                    <span className="text-xs text-fg-muted ml-auto">{finding.citation}</span>
-                  </div>
-
-                  <h3 className="font-medium leading-snug">{finding.requirement}</h3>
-                  <p className="text-sm text-fg-muted leading-relaxed">
-                    {finding.explanation}
-                  </p>
-
-                  {finding.documentQuote ? (
-                    <Quote
-                      tone={finding.grounding.document?.verdict ?? "neutral"}
-                      source={
-                        <>
-                          from your document —{" "}
-                          {finding.grounding.document
-                            ? `${finding.grounding.document.verdict} match`
-                            : "not checked"}
-                        </>
-                      }
-                    >
-                      “{finding.documentQuote}”
-                    </Quote>
-                  ) : null}
-
-                  <Quote
-                    tone={finding.grounding.regulation.verdict}
-                    source={
-                      <>
-                        <Citation>{finding.citation}</Citation> —{" "}
-                        {finding.grounding.regulation.verdict} match
-                        {finding.grounding.regulation.verdict === "near"
-                          ? ` (${(finding.grounding.regulation.similarity * 100).toFixed(0)}% overlap)`
-                          : ""}
-                      </>
-                    }
-                  >
-                    “{finding.regulationQuote}”
-                  </Quote>
-
-                  {!finding.supported ? (
-                    <p className="text-xs text-unsupported">
-                      This quote was not found in any passage the model was shown, so this finding
-                      is excluded from the score. It is left visible on purpose.
-                    </p>
-                  ) : null}
-                </article>
-              ))}
-
-              {framework.hasCorpus && framework.findings.length === 0 ? (
-                <p className="text-sm text-fg-muted">
-                  No findings for this framework against the {framework.passages.length} passages
-                  retrieved.
-                </p>
-              ) : null}
-            </section>
-          ))}
+            {showTrace ? <TraceTable trace={data.trace as unknown as ReportResult["trace"]} /> : null}
+          </Card>
         </div>
       ) : null}
     </div>

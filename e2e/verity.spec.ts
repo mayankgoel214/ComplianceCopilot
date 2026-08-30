@@ -256,6 +256,54 @@ test.describe("assessment", () => {
   });
 });
 
+test.describe("saved reports", () => {
+  test("a report id that does not exist is a 404, not a blank page", async ({ page }) => {
+    const response = await page.goto("/r/aaaaaaaaaaaa");
+    expect(response?.status()).toBe(404);
+  });
+
+  test("a malformed report id is refused without touching the database", async ({ page }) => {
+    const response = await page.goto("/r/not-an-id!!");
+    expect(response?.status()).toBe(404);
+  });
+
+  test("exporting a report that does not exist says so in plain text", async ({ request }) => {
+    const response = await request.get("/api/report/aaaaaaaaaaaa/export");
+    expect(response.status()).toBe(404);
+    expect(await response.text()).toMatch(/does not exist|expired/i);
+  });
+
+  test("an assessment is saved, linkable and downloadable", async ({ page, request }) => {
+    test.skip(!MODEL_AVAILABLE, SKIP_REASON);
+    test.setTimeout(180_000);
+
+    await page.goto("/assess");
+    await page.getByRole("button", { name: /load the sample document/i }).click();
+    await page.getByRole("button", { name: /assess this document/i }).click();
+    await expect(page.getByRole("heading", { name: /what it read/i })).toBeVisible({
+      timeout: 150_000,
+    });
+
+    // The permalink is offered next to the result, not buried at the bottom.
+    const permalink = page.getByRole("link", { name: /permalink/i });
+    await expect(permalink).toBeVisible();
+
+    const href = await permalink.getAttribute("href");
+    expect(href).toMatch(/^\/r\/[A-Za-z0-9_-]+$/);
+
+    // The saved page must render for someone who never ran anything.
+    const saved = await request.get(href!);
+    expect(saved.status()).toBe(200);
+    expect(await saved.text()).toContain("Citation grounding");
+
+    const id = href!.split("/").pop()!;
+    const exported = await request.get(`/api/report/${id}/export`);
+    expect(exported.status()).toBe(200);
+    expect(exported.headers()["content-type"]).toContain("text/markdown");
+    expect(await exported.text()).toContain("# Compliance assessment");
+  });
+});
+
 test.describe("resilience", () => {
   test("malformed JSON is rejected, not swallowed", async ({ request }) => {
     const response = await request.post("/api/search", {

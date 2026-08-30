@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   /**
@@ -44,4 +45,21 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Sentry wraps the config rather than replacing it.
+ *
+ * Everything above — the file tracing that puts data/ and pdfjs's worker in the
+ * deployment, and the externalised packages that let pdfjs resolve its own
+ * paths — is load-bearing in production and invisible in development. The
+ * wizard would have rewritten this file; wrapping it by hand keeps both.
+ */
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  // Source maps are uploaded only when a token is configured, so a build
+  // without one succeeds instead of failing on an upload it cannot perform.
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  widenClientFileUpload: true,
+  disableLogger: true,
+});

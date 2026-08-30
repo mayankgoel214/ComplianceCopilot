@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import { assessDocumentStream, MAX_DOCUMENT_CHARS } from "@/lib/pipeline/assess";
-import { ASSESS_BUCKET, checkRateLimit, visitorKeyFrom } from "@/lib/demo/rate-limit";
+import { ASSESS_BUCKET, visitorKeyFrom } from "@/lib/demo/rate-limit";
+import { checkRateLimit } from "@/lib/rate-limit/redis";
+import { findCachedReport, saveReport } from "@/lib/db/reports";
 import { DEMO_DOCUMENT, DEMO_PROJECT_DESCRIPTION } from "@/lib/demo/fixture";
 
 /**
@@ -58,7 +60,27 @@ export async function POST(request: Request) {
   // Metered only once the request is known to be well formed. A malformed body
   // costs nothing to reject, so charging it against the visitor's allowance
   // would spend their quota on a request that was never going to reach a model.
-  const limit = checkRateLimit(visitorKeyFrom(request.headers), ASSESS_BUCKET);
+  // Served before the rate limit is spent: an identical document has already
+  // been assessed, the answer is stored, and charging a visitor one of three
+  // runs to be handed a row is a poor trade for both of us.
+  //
+  // The sample is deliberately exempt, and the test is on the content rather
+  // than on the `useSample` flag. The page loads the sample into the textarea
+  // and submits it as an ordinary document, so a flag-based exemption missed
+  // the path almost every visitor actually takes — the sample was a cache hit,
+  // returned in a tenth of a second with no stages, and the one document most
+  // people run became the one that never showed the pipeline working.
+  const isSample = document.trim() === DEMO_DOCUMENT.trim();
+  const cached = isSample ? null : await findCachedReport(document);
+  if (cached) {
+    return new Response(
+      `${JSON.stringify({ type: "meta", usedSample: useSample, cached: true, reportId: cached.id, assessedAt: cached.createdAt })}\n` +
+        `${JSON.stringify({ type: "done", result: cached.result })}\n`,
+      { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } }
+    );
+  }
+
+  const limit = await checkRateLimit(visitorKeyFrom(request.headers), ASSESS_BUCKET);
   if (!limit.allowed) {
     return json(
       { error: limit.reason, retryAfterSeconds: limit.retryAfterSeconds },
@@ -74,8 +96,26 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
       try {
-        send({ type: "meta", usedSample: useSample, runsRemainingThisHour: limit.remaining });
+        send({
+          type: "meta",
+          usedSample: useSample,
+          cached: false,
+          runsRemainingThisHour: limit.remaining,
+          rateLimitDistributed: limit.distributed,
+        });
+
         for await (const event of assessDocumentStream(document, projectDescription)) {
+          if (event.type === "done") {
+            // Saved before the terminal event, so the id can travel with it and
+            // the reader gets a link in the same breath as the result.
+            const saved = await saveReport(document, event.result);
+            send({
+              ...event,
+              reportId: saved?.id ?? null,
+              expiresAt: saved?.expiresAt ?? null,
+            });
+            continue;
+          }
           send(event);
         }
       } catch (error) {

@@ -257,6 +257,8 @@ test.describe("assessment", () => {
 });
 
 test.describe("saved reports", () => {
+  // These two hold with or without a database: loadReport returns null either
+  // way, and a null report is a 404 rather than a blank page.
   test("a report id that does not exist is a 404, not a blank page", async ({ page }) => {
     const response = await page.goto("/r/aaaaaaaaaaaa");
     expect(response?.status()).toBe(404);
@@ -284,8 +286,20 @@ test.describe("saved reports", () => {
       timeout: 150_000,
     });
 
-    // The permalink is offered next to the result, not buried at the bottom.
+    // Saving needs a database, and Verity is built to run without one — the
+    // core of it needs a single API key. So this asserts whichever behaviour is
+    // correct for the environment it is running in, rather than skipping and
+    // leaving the degraded path untested. CI has no DATABASE_URL and therefore
+    // exercises the second branch every run.
     const permalink = page.getByRole("link", { name: /permalink/i });
+
+    if ((await permalink.count()) === 0) {
+      await expect(page.getByText(/not saved/i)).toBeVisible();
+      await expect(page.getByText(/no database is configured/i)).toBeVisible();
+      return;
+    }
+
+    // The permalink is offered next to the result, not buried at the bottom.
     await expect(permalink).toBeVisible();
 
     const href = await permalink.getAttribute("href");

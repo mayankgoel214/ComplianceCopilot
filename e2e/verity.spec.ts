@@ -182,6 +182,37 @@ test.describe("file upload", () => {
     expect((await response.json()).error).toMatch(/PDF, Word/i);
   });
 
+  test("refuses a decompression bomb before parsing it", async ({ request }) => {
+    // A .docx is a zip. This one is small on the wire and declares an enormous
+    // expansion; before the guard it allocated 400 MB server-side and returned
+    // 200. The rejection has to be fast, because being slow is the attack.
+    const { execFileSync } = await import("node:child_process");
+    const { mkdtempSync, writeFileSync, readFileSync, mkdirSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+
+    const dir = mkdtempSync(path.join(tmpdir(), "verity-bomb-"));
+    mkdirSync(path.join(dir, "word"), { recursive: true });
+    writeFileSync(path.join(dir, "[Content_Types].xml"), "<Types/>");
+    writeFileSync(
+      path.join(dir, "word", "document.xml"),
+      "<w:document><w:body>" + "A".repeat(60 * 1024 * 1024) + "</w:body></w:document>"
+    );
+    const archive = path.join(dir, "bomb.docx");
+    execFileSync("zip", ["-r", "-9", "-q", archive, "[Content_Types].xml", "word"], { cwd: dir });
+
+    const started = Date.now();
+    const response = await request.post("/api/extract", {
+      multipart: {
+        file: { name: "bomb.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: readFileSync(archive) },
+      },
+    });
+
+    expect(response.status()).toBe(422);
+    expect(await response.text()).toMatch(/expands to \d+ MB/);
+    expect(Date.now() - started).toBeLessThan(10_000);
+  });
+
   test("refuses a request with no file attached", async ({ request }) => {
     const form = new FormData();
     const response = await request.post("/api/extract", { multipart: form as never });

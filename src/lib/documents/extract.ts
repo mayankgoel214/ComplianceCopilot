@@ -15,7 +15,18 @@
  * cannot cause that class of failure again.
  */
 
+import { assertSafeArchive, ArchiveRejected } from "./archive-guard";
+
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Pages a PDF may contain before it is refused.
+ *
+ * The page count is read from the metadata first, which is cheap, so a
+ * thousand-page scan is turned away before any text extraction begins rather
+ * than after.
+ */
+const MAX_PDF_PAGES = 300;
 
 /** Enough text that the result is worth assessing rather than a scan artefact. */
 const MIN_USEFUL_CHARS = 200;
@@ -113,10 +124,24 @@ export async function extractText(
 
     const parser = new PDFParse({ data: new Uint8Array(buffer) });
     try {
+      // Metadata first. Reading the page count costs almost nothing, and it
+      // means an enormous document is refused before any text is extracted
+      // rather than after the memory has already been spent.
+      const info = await parser.getInfo();
+      const total = info.total ?? 0;
+      if (total > MAX_PDF_PAGES) {
+        throw new ExtractionFailedError(
+          `That PDF has ${total} pages. Verity reads up to ${MAX_PDF_PAGES}; assessing more than that is a job for a person, not a demo.`
+        );
+      }
+
       const parsed = await parser.getText();
       text = tidy(parsed.text ?? "");
       pages = parsed.total;
     } catch (error) {
+      // A refusal we raised ourselves already says what is wrong; wrapping it
+      // in "could not be read" would replace a useful message with a vague one.
+      if (error instanceof ExtractionFailedError) throw error;
       throw new ExtractionFailedError(
         `That PDF could not be read: ${error instanceof Error ? error.message.slice(0, 160) : "unknown error"}`
       );
@@ -135,6 +160,16 @@ export async function extractText(
       );
     }
   } else if (kind === "docx") {
+    // Checked before mammoth sees it. A .docx is a zip, and the archive size
+    // cap says nothing about what the archive expands to — a 217 KB file whose
+    // document.xml unpacks to 200 MB measured a 400 MB allocation here.
+    try {
+      assertSafeArchive(buffer);
+    } catch (error) {
+      if (error instanceof ArchiveRejected) throw new ExtractionFailedError(error.message);
+      throw error;
+    }
+
     const mammoth = await import("mammoth");
     try {
       const result = await mammoth.extractRawText({ buffer });

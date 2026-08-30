@@ -43,7 +43,12 @@ describe("Trace", () => {
 
     const summary = trace.summary();
     expect(summary.spans).toHaveLength(1);
-    expect(summary.spans[0].error).toBe("upstream exploded");
+    // The span records what kind of failure it was, not the upstream text.
+    // This assertion used to read `toBe("upstream exploded")`, which is exactly
+    // the behaviour that published a provider's billing message to the public
+    // — a trace summary travels to the browser in the response body.
+    expect(summary.spans[0].error).toBe("unknown");
+    expect(summary.spans[0].error).not.toContain("exploded");
   });
 
   it("counts embedding calls separately instead of folding them into the cost", async () => {

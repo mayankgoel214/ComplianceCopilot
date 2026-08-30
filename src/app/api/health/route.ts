@@ -25,10 +25,11 @@ export async function GET() {
       detail: `${store.meta.chunkCount} chunks from ${store.meta.sectionCount} sections, ${store.meta.dimensions}d`,
     };
   } catch (error) {
-    checks.index = {
-      ok: false,
-      detail: error instanceof Error ? error.message.slice(0, 200) : "index failed to load",
-    };
+    // The reason the index failed to load is a filesystem or deployment
+    // detail. "ok: false" is the whole of what a caller needs; the rest is for
+    // whoever reads the logs.
+    console.error("[health] index failed to load:", error);
+    checks.index = { ok: false, detail: "index failed to load" };
   }
 
   const hasKey = Boolean(process.env.GOOGLE_GEMINI_API_KEY);

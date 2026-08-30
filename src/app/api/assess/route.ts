@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { toPublicFailure } from "@/lib/errors/public-error";
 
 import { assessDocumentStream, MAX_DOCUMENT_CHARS } from "@/lib/pipeline/assess";
 import { ASSESS_BUCKET, visitorKeyFrom } from "@/lib/demo/rate-limit";
@@ -122,12 +123,13 @@ export async function POST(request: Request) {
         // Reported rather than papered over. An assessment that invents a
         // result when the model is unavailable is worse than one that admits
         // it failed.
-        console.error("Assessment failed:", error);
-        send({
-          type: "error",
-          message:
-            error instanceof Error ? error.message.slice(0, 400) : "The assessment failed.",
-        });
+        //
+        // Classified rather than echoed, though: this used to forward the
+        // upstream message straight to the browser, which meant a depleted
+        // billing account announced itself to the public in the provider's own
+        // words. The detail belongs in the server log.
+        const failure = toPublicFailure(error, "assess");
+        send({ type: "error", message: failure.message, kind: failure.kind });
       } finally {
         controller.close();
       }

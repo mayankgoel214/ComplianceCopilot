@@ -84,7 +84,7 @@ export type AssessEvent =
   | { type: "classified"; documentSummary: string; frameworks: string[] }
   | { type: "framework"; assessment: FrameworkAssessment }
   | { type: "done"; result: AssessmentResult }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; kind?: string };
 
 const CLASSIFY_SYSTEM = [
   "You identify which regulatory frameworks apply to a document describing a research or academic system.",

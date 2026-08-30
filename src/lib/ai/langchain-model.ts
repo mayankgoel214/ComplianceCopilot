@@ -1,4 +1,5 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { classifyFailure } from "@/lib/errors/public-error";
 import { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import type { LLMResult } from "@langchain/core/outputs";
 import type { Serialized } from "@langchain/core/load/serializable";
@@ -78,7 +79,9 @@ export class TraceCallbackHandler extends BaseCallbackHandler {
       inputTokens: null,
       outputTokens: null,
       cached: false,
-      error: error instanceof Error ? error.message : String(error),
+      // A kind, not the upstream text — trace summaries are returned to the
+      // browser. See the same note in Trace.record.
+      error: classifyFailure(error),
     });
   }
 }

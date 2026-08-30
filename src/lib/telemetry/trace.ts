@@ -11,6 +11,8 @@
 
 export type SpanKind = "embed" | "retrieve" | "rerank" | "generate" | "ground";
 
+import { classifyFailure } from "@/lib/errors/public-error";
+
 export interface Span {
   name: string;
   kind: SpanKind;
@@ -94,7 +96,14 @@ export class Trace {
         inputTokens: null,
         outputTokens: null,
         cached: false,
-        error: error instanceof Error ? error.message : String(error),
+        // Classified, not copied. A trace summary is returned to the browser
+        // alongside the results, so a span that recorded `error.message`
+        // verbatim published whatever the upstream provider chose to say — the
+        // same disclosure the route handlers had, reached by a different path,
+        // and not fixed by fixing them. The operator detail is already in the
+        // server log via the route's own handler; a visitor needs to know that
+        // a span failed and roughly why, which a kind conveys.
+        error: classifyFailure(error),
       });
       throw error;
     }

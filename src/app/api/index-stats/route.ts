@@ -32,9 +32,10 @@ export async function GET() {
       evaluation,
     });
   } catch (error) {
+    console.error("[index-stats] failed:", error);
     console.error("index-stats failed:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message.slice(0, 300) : "Could not load the index." },
+      { error: "Could not load the index." },
       { status: 500 }
     );
   }

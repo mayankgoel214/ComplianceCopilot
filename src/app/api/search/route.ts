@@ -6,6 +6,7 @@ import { rerank } from "@/lib/retrieval/rerank";
 import { getGeminiEmbeddingService } from "@/lib/ai/gemini-embeddings";
 import { Trace } from "@/lib/telemetry/trace";
 import { AI_CONFIG } from "@/lib/ai/config";
+import { toPublicFailure } from "@/lib/errors/public-error";
 import {
   RERANK_BUCKET,
   SEARCH_BUCKET,
@@ -72,33 +73,57 @@ export async function POST(request: Request) {
     const trace = new Trace();
     const embeddings = getGeminiEmbeddingService();
 
-    // Embedded once and reused across the arms that need it. Charging the
-    // comparison three embeddings for one query would make the latency figures
-    // this page reports meaningless.
+    // Embedded once, up front, and reused across the arms that need it.
+    // Charging the comparison three embeddings for one query would make the
+    // latency figures this page reports meaningless.
+    //
+    // Up front rather than lazily because the answer changes what this endpoint
+    // can offer. BM25 needs no embedding at all, so when the embedding service
+    // is unavailable there is still a real lexical index here to search — and a
+    // page that says "dense retrieval is unavailable, these are BM25 results"
+    // is honest, where one that quietly returns three arms computed from a
+    // stand-in vector is the exact failure this project exists to argue
+    // against. So: degrade, name the degradation, and never fake a vector.
     let cachedVector: number[] | null = null;
-    const embedQuery = async (query: string): Promise<number[]> => {
-      if (cachedVector) return cachedVector;
+    let degraded: { reason: string; message: string } | null = null;
+
+    try {
       cachedVector = await trace.record("embed:query", "embed", async () => ({
-        value: await embeddings.generateQueryEmbedding(query),
+        value: await embeddings.generateQueryEmbedding(body.query),
         model: AI_CONFIG.embeddings.model,
         inputTokens: null,
         outputTokens: null,
       }));
+    } catch (error) {
+      const failure = toPublicFailure(error, "search:embed");
+      degraded = { reason: failure.kind, message: failure.message };
+    }
+
+    const embedQuery = async (): Promise<number[]> => {
+      if (!cachedVector) {
+        // Unreachable: no dense arm is constructed without a vector. Throwing
+        // rather than returning zeros keeps that guarantee enforced instead of
+        // assumed.
+        throw new Error("A dense arm was run without a query embedding.");
+      }
       return cachedVector;
     };
 
     const framework = body.framework && body.framework !== "all" ? body.framework : undefined;
 
-    const [dense, bm25, hybrid] = await Promise.all([
-      store.search(body.query, embedQuery, { mode: "dense", topK, framework }),
-      store.search(body.query, embedQuery, { mode: "bm25", topK, framework }),
-      store.search(body.query, embedQuery, {
-        mode: "hybrid",
-        topK,
-        framework,
-        weights: { dense: 1, lexical: 1 },
-      }),
-    ]);
+    const bm25 = await store.search(body.query, embedQuery, { mode: "bm25", topK, framework });
+
+    const [dense, hybrid] = cachedVector
+      ? await Promise.all([
+          store.search(body.query, embedQuery, { mode: "dense", topK, framework }),
+          store.search(body.query, embedQuery, {
+            mode: "hybrid",
+            topK,
+            framework,
+            weights: { dense: 1, lexical: 1 },
+          }),
+        ])
+      : [null, null];
 
     const shape = (label: string, result: Awaited<ReturnType<typeof store.search>>) => ({
       label,
@@ -117,12 +142,14 @@ export async function POST(request: Request) {
     });
 
     const arms = [
-      shape("Dense", dense),
+      ...(dense ? [shape("Dense", dense)] : []),
       shape("BM25", bm25),
-      shape("Hybrid RRF", hybrid),
+      ...(hybrid ? [shape("Hybrid RRF", hybrid)] : []),
     ];
 
-    if (body.withRerank && rerankAllowed) {
+    // Reranking is a generation call, so it is unavailable for the same reason
+    // the embedding was.
+    if (body.withRerank && rerankAllowed && cachedVector) {
       const started = Date.now();
       const candidates = await store.candidatesForRerank(
         body.query,
@@ -161,12 +188,10 @@ export async function POST(request: Request) {
         vocabularySize: store.vocabularySize,
       },
       searchesRemainingThisHour: limit.remaining,
+      degraded: degraded ?? undefined,
     });
   } catch (error) {
-    console.error("Search failed:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message.slice(0, 400) : "The search failed." },
-      { status: 502 }
-    );
+    const failure = toPublicFailure(error, "search");
+    return NextResponse.json({ error: failure.message }, { status: failure.status });
   }
 }

@@ -53,6 +53,8 @@ interface SearchResponse {
   query: string;
   arms: Arm[];
   rerankRefused?: string;
+  /** Present when an arm could not be computed and was left out rather than faked. */
+  degraded?: { reason: string; message: string };
   index: {
     chunkCount: number;
     sectionCount: number;
@@ -209,6 +211,28 @@ export default function SearchPage() {
           </p>
           {data.rerankRefused ? (
             <p className="text-sm text-near mt-2">{data.rerankRefused}</p>
+          ) : null}
+
+          {/*
+            Stated loudly, because the alternative is a page that looks like it
+            compared four retrieval strategies when it compared one. The missing
+            arms are missing, not empty and not approximated.
+          */}
+          {data.degraded ? (
+            <div
+              role="status"
+              className="mt-4 rounded-[10px] border border-near/40 bg-near-soft p-4"
+            >
+              <p className="text-sm font-medium text-near">
+                Dense and hybrid retrieval are unavailable — showing BM25 only
+              </p>
+              <p className="text-sm text-fg-muted mt-1">{data.degraded.message}</p>
+              <p className="text-xs text-fg-faint mt-2">
+                BM25 is computed entirely in-process from the lexical index, so it
+                needs no model call and is unaffected. The arms that need a query
+                embedding have been left out rather than approximated.
+              </p>
+            </div>
           ) : null}
 
           {/*

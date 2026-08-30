@@ -237,7 +237,16 @@ export function EmptyState({
   );
 }
 
-export function ErrorNote({ title, detail }: { title: string; detail: string }) {
+export function ErrorNote({
+  title,
+  detail,
+  action,
+}: {
+  title: string;
+  detail: string;
+  /** An offer, for the errors where there is still something worth doing. */
+  action?: { href: string; label: string };
+}) {
   return (
     <div
       role="alert"
@@ -245,6 +254,16 @@ export function ErrorNote({ title, detail }: { title: string; detail: string }) 
     >
       <p className="text-sm font-medium text-unsupported">{title}</p>
       <p className="text-[13px] text-fg-muted leading-relaxed">{detail}</p>
+      {action ? (
+        <p className="pt-1">
+          <Link
+            href={action.href}
+            className="text-[13px] font-medium text-accent underline underline-offset-4"
+          >
+            {action.label}
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

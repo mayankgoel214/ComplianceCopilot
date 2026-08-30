@@ -84,8 +84,15 @@ create table if not exists reports (
   created_at    timestamptz not null default now(),
   -- Retention is a promise the interface makes to whoever pasted a document
   -- into it, so it is written down here rather than left to a cron nobody runs.
-  expires_at    timestamptz not null default now() + interval '30 days'
+  expires_at    timestamptz not null default now() + interval '30 days',
+  -- A pinned report is exempt from retention. Exactly one exists: the worked
+  -- example linked from the front page, so that a visitor can read a finished
+  -- assessment without spending a model call — and can still read one when the
+  -- model is unavailable, which is not hypothetical.
+  pinned        boolean not null default false
 );
+
+alter table reports add column if not exists pinned boolean not null default false;
 
 create index if not exists reports_expires_idx on reports (expires_at);
 -- Supports the cache lookup: the newest unexpired report for an identical
@@ -102,6 +109,6 @@ create index if not exists reports_hash_created_idx on reports (document_hash, c
 create or replace function purge_expired_reports() returns integer
 language sql
 as $$
-  with deleted as (delete from reports where expires_at < now() returning 1)
+  with deleted as (delete from reports where expires_at < now() and not pinned returning 1)
   select count(*)::integer from deleted;
 $$;

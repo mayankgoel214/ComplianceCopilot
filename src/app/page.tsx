@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { SAMPLE_REPORT_PATH } from "@/lib/demo/sample-report";
 
 import { getRetrievalStore } from "@/lib/retrieval/store";
 import { ButtonLink, Card, Citation, Section, Stat } from "@/components/ui";
@@ -77,10 +78,13 @@ export default async function HomePage() {
           <ButtonLink href="/search" variant="secondary">
             Try the retrieval playground
           </ButtonLink>
+          <ButtonLink href={SAMPLE_REPORT_PATH} variant="secondary">
+            Read a finished report
+          </ButtonLink>
         </div>
         <p className="text-[13px] text-fg-faint mt-4">
           No account, nothing to install. Rate limited, because it spends real money on a real
-          model.
+          model — and the finished report is there whether or not you have a run to spare.
         </p>
       </section>
 

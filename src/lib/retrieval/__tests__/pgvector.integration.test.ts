@@ -5,8 +5,8 @@
  *
  *   docker run -d --name verity-pgvector-test \
  *     -e POSTGRES_PASSWORD=verity -e POSTGRES_DB=verity_test \
- *     -p 55432:5432 pgvector/pgvector:pg17
- *   export VERITY_TEST_DATABASE_URL=postgres://postgres:verity@localhost:55432/verity_test
+ *     -p 55433:5432 pgvector/pgvector:pg17
+ *   export VERITY_TEST_DATABASE_URL=postgres://postgres:verity@localhost:55433/verity_test
  *
  * A mocked database would test that this file calls the functions this file
  * calls. The point of the test is the parts a mock cannot have an opinion
@@ -16,10 +16,13 @@
  */
 import { Client } from "pg";
 
+import { assertDisposableDatabase } from "@/test-support/disposable-database";
+
 import { PgVectorStore, type SqlExecutor } from "../pgvector-store";
 import type { Chunk } from "../types";
 
 const DATABASE_URL = process.env.VERITY_TEST_DATABASE_URL;
+if (DATABASE_URL) assertDisposableDatabase(DATABASE_URL);
 const describeIfDatabase = DATABASE_URL ? describe : describe.skip;
 
 const DIMENSIONS = 8;

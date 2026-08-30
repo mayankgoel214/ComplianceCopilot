@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SAMPLE_REPORT_PATH } from "@/lib/demo/sample-report";
 
 import { Button, ButtonLink, buttonClass, Card, ErrorNote, Skeleton } from "@/components/ui";
 import { ReportBody, TraceTable, type ReportResult } from "@/components/report-view";
@@ -410,7 +411,13 @@ export default function AssessClient({ sampleDocument, sampleDescription }: Asse
       ) : null}
 
       {error ? (
-        <ErrorNote title="The assessment did not complete." detail={error} />
+        <ErrorNote
+          title="The assessment did not complete."
+          detail={error}
+          // A dead end is a bad answer when a finished run of this exact
+          // pipeline is one click away and costs nothing to serve.
+          action={{ href: SAMPLE_REPORT_PATH, label: "Read a finished report instead →" }}
+        />
       ) : null}
 
       {data ? (

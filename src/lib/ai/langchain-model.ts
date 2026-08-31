@@ -1,4 +1,5 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { getModelBaseUrl, isUsingStubModel } from "./endpoint";
 import { classifyFailure } from "@/lib/errors/public-error";
 import { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import type { LLMResult } from "@langchain/core/outputs";
@@ -95,5 +96,8 @@ export function createChatModel(options: { maxOutputTokens?: number; temperature
     // One retry inside the client. More than that and a failing call spends a
     // visitor's whole rate-limit allowance before telling them anything.
     maxRetries: 1,
+    // Follows the same override as the direct client, so a test run does not
+    // have one of the two paths quietly talking to the real API.
+    ...(isUsingStubModel() ? { baseUrl: getModelBaseUrl() } : {}),
   });
 }

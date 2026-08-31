@@ -49,12 +49,26 @@ jobs:
       - name: Build
         run: npm run build
 
-      # The end-to-end suite is split: everything that does not need a model key
-      # always runs, so a fork's pull request still gets real coverage.
+      # The end-to-end suite runs against a local stub of the model API, started
+      # by the Playwright config. It used to call the real one, which meant this
+      # job could not pass unless the Gemini account was funded -- and when the
+      # prepayment credits ran out, CI went red for a reason that had nothing to
+      # do with the code. A pipeline that cannot tell you whether main is broken
+      # unless a credit card is working is not doing its job.
+      #
+      # A consequence worth having: no secret is needed here any more, so a
+      # fork's pull request gets the same coverage as a push to main.
+      #
+      # What this does not test is retrieval quality -- the stub's embeddings are
+      # hashed, not learned. Quality is measured by the evaluation harness
+      # against the real model, and that is the only place it is claimed.
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 
       - name: End-to-end tests
         run: npx playwright test --project=chromium
         env:
-          GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+          # Present but deliberately not a real key: the stub never checks it,
+          # and a real one here would let a mistake in the override guard reach
+          # the paid API without anyone noticing.
+          GOOGLE_GEMINI_API_KEY: stub-not-a-real-key

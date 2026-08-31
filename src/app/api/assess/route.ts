@@ -91,10 +91,30 @@ export async function POST(request: Request) {
   }
 
   const encoder = new TextEncoder();
+  let open = true;
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: unknown) =>
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      // A reader that goes away mid-run closes the stream under us, and every
+      // subsequent enqueue throws `Invalid state: Controller is already
+      // closed`. That is not a hypothetical: an assessment takes about twenty-
+      // five seconds and emits a dozen events, so any visitor who navigates
+      // away or hits stop lands in exactly this window. The throw was then
+      // caught by the handler below, which tried to report it by sending one
+      // more event, which threw again -- so a routine disconnect surfaced as an
+      // unhandled error and a logged stack trace.
+      //
+      // Tracked rather than probed because ReadableStream exposes no "is this
+      // still open" question worth asking, and `desiredSize === null` only
+      // tells you about errored streams.
+      const send = (event: unknown) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          // The reader is gone. Stop writing; there is nobody to tell.
+          open = false;
+        }
+      };
 
       try {
         send({
@@ -118,6 +138,13 @@ export async function POST(request: Request) {
             continue;
           }
           send(event);
+
+          // The reader has gone. Stop here rather than running the remaining
+          // frameworks: each one is a retrieval plus a generation call, and
+          // finishing an assessment nobody will read spends real money on
+          // nothing. Breaking out of a for-await returns the generator, so the
+          // pipeline's own cleanup still happens.
+          if (!open) break;
         }
       } catch (error) {
         // Reported rather than papered over. An assessment that invents a
@@ -131,8 +158,21 @@ export async function POST(request: Request) {
         const failure = toPublicFailure(error, "assess");
         send({ type: "error", message: failure.message, kind: failure.kind });
       } finally {
-        controller.close();
+        if (open) {
+          open = false;
+          try {
+            controller.close();
+          } catch {
+            // Already closed by the reader disconnecting. Nothing to do.
+          }
+        }
       }
+    },
+
+    // Fired when the reader disconnects. Flips the same flag the writes check,
+    // so the loop above stops at its next event instead of running to the end.
+    cancel() {
+      open = false;
     },
   });
 

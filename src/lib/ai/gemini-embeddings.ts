@@ -18,6 +18,7 @@ const TaskType = {
 
 type TaskType = (typeof TaskType)[keyof typeof TaskType];
 import { getGeminiApiKey, AI_CONFIG } from './config';
+import { getModelBaseUrl } from './endpoint';
 
 export interface EmbeddingConfig {
   model: string;
@@ -187,8 +188,7 @@ export class GeminiEmbeddingService {
     taskType: TaskType,
     title?: string
   ): Promise<number[][]> {
-    const endpoint =
-      `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:batchEmbedContents`;
+    const endpoint = `${getModelBaseUrl()}/models/${this.config.model}:batchEmbedContents`;
 
     const response = await fetch(endpoint, {
       method: 'POST',

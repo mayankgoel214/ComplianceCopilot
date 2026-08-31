@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getModelBaseUrl } from "./endpoint";
 
 import { AI_CONFIG, getGeminiApiKey } from "./config";
 import type { Trace } from "../telemetry/trace";
@@ -76,7 +77,7 @@ async function callGemini(
   options: GenerateOptions & { json?: boolean; responseSchema?: GeminiSchema }
 ): Promise<RawGeneration> {
   const model = AI_CONFIG.gemini.model;
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const endpoint = `${getModelBaseUrl()}/models/${model}:generateContent`;
 
   const response = await fetch(endpoint, {
     method: "POST",

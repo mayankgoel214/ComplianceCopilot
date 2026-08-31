@@ -85,10 +85,14 @@ test.describe("retrieval playground", () => {
   test.describe("ranked results", () => {
     test.skip(!MODEL_AVAILABLE, SKIP_REASON);
 
+  // `exact: true` on the submit button throughout: a non-exact name match also
+  // hits every result row whose heading contains "Research", because "research"
+  // contains "search". That only bites once the corpus surfaces Common Rule
+  // sections, so it sat here green until the ranking changed underneath it.
   test("keeps the previous results on screen while a new search runs", async ({ page }) => {
     await page.goto("/search");
     await page.getByLabel("Search query").fill("breach notification deadline");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Dense", exact: true })).toBeVisible({
       timeout: 45_000,
     });
@@ -96,7 +100,7 @@ test.describe("retrieval playground", () => {
     // A second search must not blank the page: the results stay, dimmed, and a
     // status line explains the wait.
     await page.getByLabel("Search query").fill("data protection impact assessment");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("status")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Dense", exact: true })).toBeVisible();
   });
@@ -104,7 +108,7 @@ test.describe("retrieval playground", () => {
   test("returns three ranked arms for a natural-language query", async ({ page }) => {
     await page.goto("/search");
     await page.getByLabel("Search query").fill("How quickly must we report a breach to the regulator?");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
 
     await expect(page.getByRole("heading", { name: "Dense", exact: true })).toBeVisible({
       timeout: 45_000,
@@ -117,7 +121,7 @@ test.describe("retrieval playground", () => {
   test("a result expands to show the passage and a link to the source", async ({ page }) => {
     await page.goto("/search");
     await page.getByLabel("Search query").fill("business associate agreement requirements");
-    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Dense", exact: true })).toBeVisible({
       timeout: 45_000,
     });

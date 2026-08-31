@@ -18,7 +18,8 @@
     "eval:chunking": "tsx --env-file=.env.local scripts/chunking-experiment.mts",
     "db:migrate": "tsx --env-file=.env.local scripts/db-migrate.mts",
     "corpus:push": "tsx --env-file=.env.local scripts/push-corpus.mts",
-    "eval:parity": "tsx --env-file=.env.local eval/pgvector-parity.mts"
+    "eval:parity": "tsx --env-file=.env.local eval/pgvector-parity.mts",
+    "eval:adversarial": "tsx --env-file=.env.local eval/adversarial/run.mts"
   },
   "dependencies": {
     "@langchain/core": "^1.2.9",

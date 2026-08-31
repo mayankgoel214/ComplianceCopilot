@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isUsingStubModel } from "@/lib/ai/endpoint";
 
 import { getRetrievalStore } from "@/lib/retrieval/store";
 import { AI_CONFIG } from "@/lib/ai/config";
@@ -33,12 +34,20 @@ export async function GET() {
   }
 
   const hasKey = Boolean(process.env.GOOGLE_GEMINI_API_KEY);
+  const stubbed = isUsingStubModel();
   checks.model = {
-    ok: hasKey,
+    // A stubbed process is not healthy in any sense a caller cares about. The
+    // guard in endpoint.ts already makes this unreachable in a production
+    // build, so this is the second line rather than the first: if a stub ever
+    // does answer somewhere it should not, the health check should be the thing
+    // that says so, loudly, rather than reporting "ok" because a key is set.
+    ok: hasKey && !stubbed,
     // The key itself never appears here, only whether one is configured.
-    detail: hasKey
-      ? `GOOGLE_GEMINI_API_KEY is set; model ${AI_CONFIG.gemini.model}`
-      : "GOOGLE_GEMINI_API_KEY is not set, so every endpoint that calls a model will fail",
+    detail: stubbed
+      ? "ANSWERING FROM A LOCAL STUB — responses are fabricated and mean nothing"
+      : hasKey
+        ? `GOOGLE_GEMINI_API_KEY is set; model ${AI_CONFIG.gemini.model}`
+        : "GOOGLE_GEMINI_API_KEY is not set, so every endpoint that calls a model will fail",
   };
 
   const healthy = Object.values(checks).every((c) => c.ok);

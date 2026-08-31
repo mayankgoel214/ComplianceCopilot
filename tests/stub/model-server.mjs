@@ -36,6 +36,24 @@ const PORT = Number(process.env.STUB_PORT ?? 4599);
 const DIMENSIONS = 768;
 
 /**
+ * A deliberate delay on generation calls.
+ *
+ * The real pipeline takes about twenty-five seconds and streams its stages as
+ * they complete; that streaming is a feature with a test asserting a stage is
+ * visible *while the run is in progress*. A stub that answers in under a
+ * millisecond finishes the whole run before the browser paints once, so the
+ * assertion races and loses -- which is what it did in CI while passing on a
+ * slower laptop.
+ *
+ * So the stub is slow on purpose. Small enough to keep the suite quick, large
+ * enough that the intermediate states genuinely exist and are genuinely
+ * observed rather than being timing luck.
+ */
+const GENERATE_DELAY_MS = Number(process.env.STUB_GENERATE_DELAY_MS ?? 400);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
  * A deterministic unit vector for a string.
  *
  * Deterministic so a rerun ranks identically — a flaky ordering would produce
@@ -143,7 +161,7 @@ function assessmentFor(prompt) {
 const server = createServer((req, res) => {
   let body = "";
   req.on("data", (chunk) => (body += chunk));
-  req.on("end", () => {
+  req.on("end", async () => {
     const url = req.url ?? "";
     const json = (payload) => {
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -167,6 +185,7 @@ const server = createServer((req, res) => {
       }
 
       if (url.includes(":generateContent")) {
+        await sleep(GENERATE_DELAY_MS);
         const parsed = JSON.parse(body);
         const prompt = (parsed.contents ?? [])
           .flatMap((c) => c.parts ?? [])

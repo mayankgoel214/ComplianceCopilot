@@ -31,11 +31,16 @@ function isLoopback(url: URL): boolean {
   );
 }
 
-export function getModelBaseUrl(): string {
-  const override = process.env.VERITY_MODEL_BASE_URL;
+/**
+ * `env` is a parameter rather than a direct read of `process.env` so the guard
+ * can be tested without mutating the real one — NODE_ENV is typed read-only,
+ * and a test that reassigns globals leaks into whatever runs next anyway.
+ */
+export function getModelBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env.VERITY_MODEL_BASE_URL;
   if (!override) return REAL_BASE_URL;
 
-  if (process.env.NODE_ENV === "production" && !process.env.VERITY_ALLOW_STUB_IN_PROD_BUILD) {
+  if (env.NODE_ENV === "production" && !env.VERITY_ALLOW_STUB_IN_PROD_BUILD) {
     throw new Error(
       "VERITY_MODEL_BASE_URL is set in a production build. A stubbed model must " +
         "never answer a real request. Unset it, or set " +
@@ -62,6 +67,6 @@ export function getModelBaseUrl(): string {
 }
 
 /** True when this process is talking to a stub. Surfaced in /api/health. */
-export function isUsingStubModel(): boolean {
-  return Boolean(process.env.VERITY_MODEL_BASE_URL);
+export function isUsingStubModel(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.VERITY_MODEL_BASE_URL);
 }

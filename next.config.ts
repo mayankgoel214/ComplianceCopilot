@@ -12,6 +12,81 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
 
   /**
+   * Security headers, applied to every response.
+   *
+   * `script-src` carries `'unsafe-inline'`, and that is a deliberate trade
+   * rather than an oversight. A nonce was tried first and does not work here:
+   * `/`, `/assess` and `/evaluation` are prerendered and revalidate hourly, so
+   * the HTML a visitor receives was rendered before the request existed and
+   * cannot carry that request's nonce — the browser then blocks Next's own
+   * hydration payload and the page renders but never becomes interactive.
+   * Hashes fail for the same reason from the other side: twelve of the
+   * thirteen inline scripts are Next's flight data, whose contents change with
+   * every build and every route. The remaining options were to force every
+   * page dynamic and lose the hourly cache, or to accept inline script and
+   * lock down everything else. This is the second.
+   *
+   * What that leaves standing is still worth having: no script may load from
+   * another origin, no plugin content, no framing, no form posting off-site,
+   * and no base-tag rewrite. The application renders no user-supplied HTML —
+   * the one inline script is the theme no-flash snippet in `layout.tsx`, and
+   * everything else goes through React, which escapes.
+   */
+  async headers() {
+    /**
+     * Sentry runs in the browser too, and `connect-src 'self'` blocks it
+     * silently — the page works, the errors simply never arrive, which is the
+     * worst way for monitoring to fail. The host is read out of the DSN rather
+     * than written here, so rotating the DSN cannot leave the policy pointing
+     * at the wrong ingest endpoint.
+     */
+    const sentryHost = (() => {
+      try {
+        return process.env.NEXT_PUBLIC_SENTRY_DSN
+          ? new URL(process.env.NEXT_PUBLIC_SENTRY_DSN).origin
+          : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self'",
+      `connect-src 'self'${sentryHost ? ` ${sentryHost}` : ""}`,
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: csp },
+          // Stop the browser guessing a type for an upload we echo back.
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // A report link should not leak its path to whatever it links out to.
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Nothing here needs a camera, a microphone or a location.
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+          },
+          // frame-ancestors already says this; this is for browsers that predate it.
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+        ],
+      },
+    ];
+  },
+
+  /**
    * The retrieval index and the evaluation results are plain files read at
    * runtime with `fs`. Next's tracer follows imports, not `readFile` calls with
    * a computed path, so without this they are simply absent from the deployed

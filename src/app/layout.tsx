@@ -20,10 +20,18 @@ const display = Instrument_Serif({
 const mono = JetBrains_Mono({ subsets: ["latin"], display: "swap", variable: "--font-mono" });
 
 export const metadata: Metadata = {
+  /**
+   * The canonical domain is named here rather than taken from Vercel.
+   * `VERCEL_PROJECT_PRODUCTION_URL` still reports the project's first
+   * deployment domain — `compliancecopilot-black.vercel.app` — so every share
+   * card this app rendered pointed its `og:image` at a legacy alias that
+   * happens to still answer. It reads as a different site to anyone who looks,
+   * and it breaks the day that alias is removed.
+   */
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ??
-      (process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      (process.env.NODE_ENV === "production"
+        ? "https://verity-compliance.vercel.app"
         : "http://localhost:3000")
   ),
   title: {

@@ -8,7 +8,7 @@ import AssessClient from "./assess-client";
  * be a request to learn something the bundle already knows.
  */
 export const metadata = {
-  title: "Assess a document — Verity",
+  title: "Assess a document",
   description:
     "Run the compliance pipeline over a document and see every finding with the regulation it cites, verified against the source.",
 };
